@@ -7,6 +7,7 @@ export default function HasilProduksiPage({ produksiSubmenu = 'hasil_produksi', 
   const [period, setPeriod] = useState('monthly');
   const [factory, setFactory] = useState('all');
   const [openGroups, setOpenGroups] = useState({});
+  const [openHasilSection, setOpenHasilSection] = useState('pipa');
 
   const isHasil = produksiSubmenu === 'hasil_produksi';
   const isPerforma = produksiSubmenu === 'performa_mesin';
@@ -96,6 +97,10 @@ export default function HasilProduksiPage({ produksiSubmenu = 'hasil_produksi', 
       ...prev,
       [type]: prev[type] === false,
     }));
+  };
+
+  const toggleHasilSection = (section) => {
+    setOpenHasilSection((prev) => (prev === section ? '' : section));
   };
 
   return (
@@ -273,11 +278,26 @@ export default function HasilProduksiPage({ produksiSubmenu = 'hasil_produksi', 
             const rows = harianData[cfg.key] || [];
             return (
               <div key={cfg.key} className="space-y-3">
-                <h4 className={`text-xs font-black uppercase tracking-wider flex items-center gap-2 font-label-mono ${cfg.color}`}>
-                  <span className="material-symbols-outlined text-base">{cfg.icon}</span>
-                  {cfg.title}
-                </h4>
-                <div className="overflow-x-auto custom-scrollbar border border-outline-variant/50 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => toggleHasilSection(cfg.key)}
+                  aria-expanded={openHasilSection === cfg.key}
+                  aria-controls={`hasil-produksi-${cfg.key}`}
+                  className={`w-full text-left px-3 py-2.5 rounded-lg border border-outline-variant/50 bg-surface-container-high/40 hover:bg-surface-container-high transition-colors flex items-center justify-between gap-2 ${cfg.color}`}
+                >
+                  <h4 className="text-xs font-black uppercase tracking-wider flex items-center gap-2 font-label-mono">
+                    <span className="material-symbols-outlined text-base">{cfg.icon}</span>
+                    {cfg.title}
+                  </h4>
+                  <span className="material-symbols-outlined text-on-surface-variant text-base">
+                    {openHasilSection === cfg.key ? 'expand_less' : 'expand_more'}
+                  </span>
+                </button>
+
+                <div
+                  id={`hasil-produksi-${cfg.key}`}
+                  className={`${openHasilSection === cfg.key ? 'block' : 'hidden'} overflow-x-auto custom-scrollbar border border-outline-variant/50 rounded-xl`}
+                >
                   <table className="w-full border-collapse text-left text-sm text-on-surface min-w-[760px]">
                     <thead>
                       <tr className="bg-surface-container-high/80 border-b border-outline-variant/60 font-label-mono text-xs text-on-surface-variant uppercase tracking-wider">
