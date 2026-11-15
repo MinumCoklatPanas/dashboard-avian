@@ -7,16 +7,22 @@ import BackorderPage from '../features/backorder/BackorderPage';
 
 export default function Page() {
   const [activeTab, setActiveTab] = useState('hasil_produksi');
+  const [produksiSubmenu, setProduksiSubmenu] = useState('hasil_produksi');
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab === 'backorder' ? 'backorder' : 'hasil_produksi');
+  };
 
   const handleProduksiSubmenuChange = (submenu) => {
-    setActiveTab(submenu);
+    setActiveTab('hasil_produksi');
+    setProduksiSubmenu(submenu);
   };
 
   return (
     <main className="w-full min-h-screen bg-background flex flex-col relative transition-all duration-300">
       <HeaderNav
         activeTab={activeTab}
-        onChangeTab={setActiveTab}
+        onChangeTab={handleTabChange}
         onChangeProduksiSubmenu={handleProduksiSubmenuChange}
       />
 
@@ -24,7 +30,10 @@ export default function Page() {
         {activeTab === 'backorder' ? (
           <BackorderPage />
         ) : (
-          <HasilProduksiPage produksiSubmenu={activeTab} onChangeProduksiSubmenu={handleProduksiSubmenuChange} />
+          <HasilProduksiPage
+            produksiSubmenu={produksiSubmenu}
+            onChangeProduksiSubmenu={handleProduksiSubmenuChange}
+          />
         )}
       </div>
     </main>
