@@ -125,8 +125,8 @@ export default function HasilProduksiPage({ produksiSubmenu = 'hasil_produksi', 
         </p>
       </div>
 
-      <div className="sticky top-[106px] z-30 bg-surface/95 backdrop-blur-md py-2.5 px-4 rounded-2xl border border-outline-variant/60 shadow-sm flex flex-wrap items-center justify-between gap-3 select-none">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="relative sm:sticky sm:top-[106px] z-30 bg-surface/95 backdrop-blur-md py-2.5 px-3 sm:px-4 rounded-2xl border border-outline-variant/60 shadow-sm flex flex-wrap items-center justify-between gap-3 select-none">
+        <div className="flex flex-wrap items-center gap-2 min-w-0">
           <div className="flex items-center gap-1.5 text-xs font-bold text-on-surface-variant mr-1">
             <span className="material-symbols-outlined text-primary text-base">calendar_month</span>
             <span>Periode:</span>
@@ -142,12 +142,13 @@ export default function HasilProduksiPage({ produksiSubmenu = 'hasil_produksi', 
               {periodLabel[p]}
             </button>
           ))}
-          <span className="ml-1 text-[14px] font-semibold text-on-surface-variant bg-surface-container px-2.5 py-1 rounded-md border border-outline-variant/40">
+          <span className="ml-1 w-full sm:w-auto text-[13px] sm:text-[14px] font-semibold text-on-surface-variant bg-surface-container px-2.5 py-1 rounded-md border border-outline-variant/40">
             {periodLabel[period]}: {periodDescription[period]}
           </span>
         </div>
 
-        <div className="flex items-center gap-1.5 bg-surface-container-high p-1 rounded-xl border border-outline-variant/60 shadow-sm shrink-0">
+        <div className="w-full sm:w-auto overflow-x-auto custom-scrollbar">
+          <div className="inline-flex items-center gap-1.5 bg-surface-container-high p-1 rounded-xl border border-outline-variant/60 shadow-sm shrink-0 min-w-max">
           {[
             { id: 'wotan', label: 'AAIP Wotan', sub: 'Pipa & Fitting', icon: 'factory' },
             { id: 'cirebon', label: 'AAIP Cirebon', sub: 'Pipa, Fitting & Selang', icon: 'domain' },
@@ -156,7 +157,7 @@ export default function HasilProduksiPage({ produksiSubmenu = 'hasil_produksi', 
             <button
               key={item.id}
               onClick={() => setFactory(item.id)}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold font-label-mono transition-all duration-200 ${
+              className={`shrink-0 flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold font-label-mono transition-all duration-200 ${
                 factory === item.id ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest'
               }`}
             >
@@ -167,6 +168,7 @@ export default function HasilProduksiPage({ produksiSubmenu = 'hasil_produksi', 
               </div>
             </button>
           ))}
+          </div>
         </div>
       </div>
 

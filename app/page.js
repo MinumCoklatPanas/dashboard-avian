@@ -26,7 +26,7 @@ export default function Page() {
         onChangeProduksiSubmenu={handleProduksiSubmenuChange}
       />
 
-      <div className="p-gutter-lg max-w-[1600px] mx-auto w-full flex-1 flex flex-col">
+      <div className="px-3 py-4 sm:p-gutter-lg max-w-[1600px] mx-auto w-full flex-1 flex flex-col">
         {activeTab === 'backorder' ? (
           <BackorderPage />
         ) : (

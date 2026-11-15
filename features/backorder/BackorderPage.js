@@ -157,7 +157,8 @@ export default function BackorderPage() {
       <div className="bg-surface-container border border-outline-variant p-5 lg:p-6 rounded-2xl shadow-sm space-y-4">
         <div className="flex flex-col space-y-1.5">
           <span className="text-[10px] text-on-surface-variant font-bold uppercase tracking-wider font-label-mono">Pilih Pabrik:</span>
-          <div className="flex flex-wrap bg-surface-container-high p-1 rounded-xl border border-outline-variant/60 w-fit">
+          <div className="w-full sm:w-fit overflow-x-auto custom-scrollbar">
+            <div className="inline-flex bg-surface-container-high p-1 rounded-xl border border-outline-variant/60 min-w-max">
             {['Wotan', 'Cirebon', 'all'].map((p) => (
               <button
                 key={p}
@@ -166,7 +167,7 @@ export default function BackorderPage() {
                   if (line === 'selang' && p !== 'Cirebon') setLine('pipa');
                   setSelectedRecommendationId(null);
                 }}
-                className={`flex items-center gap-2.5 px-4 py-2 rounded-lg text-xs font-bold font-label-mono transition-all duration-200 ${
+                className={`shrink-0 flex items-center gap-2.5 px-4 py-2 rounded-lg text-xs font-bold font-label-mono transition-all duration-200 ${
                   plant === p ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest'
                 }`}
               >
@@ -174,6 +175,7 @@ export default function BackorderPage() {
                 {p === 'all' ? 'Semua Pabrik' : `AAIP ${p}`}
               </button>
             ))}
+            </div>
           </div>
         </div>
 
@@ -401,9 +403,9 @@ export default function BackorderPage() {
 
                   return (
                     <div key={opt.id} className={`p-4 rounded-xl ${statusMeta.card}`}>
-                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-1.5">
                         <span className="font-extrabold text-sm text-on-surface">{opt.machine}</span>
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex flex-wrap items-center gap-1.5">
                           <span className={`px-2.5 py-0.5 rounded text-[10px] font-black uppercase font-mono border ${statusMeta.badge}`}>{statusMeta.label}</span>
                           {idx === 0 ? (
                             <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase font-mono bg-yellow-400 text-yellow-950 border border-yellow-500">Rekomendasi Utama</span>
@@ -445,12 +447,12 @@ export default function BackorderPage() {
                 className="w-full bg-surface-container-low border border-outline-variant rounded-xl pl-10 pr-4 py-2.5 text-xs lg:text-sm font-semibold focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all text-on-surface"
               />
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
               <label className="text-xs lg:text-sm font-black text-on-surface-variant uppercase tracking-wider font-label-mono whitespace-nowrap">Status SKU:</label>
               <select
                 value={velocity}
                 onChange={(e) => setVelocity(e.target.value)}
-                className="bg-surface-container-low border border-outline-variant rounded-xl px-3.5 py-2.5 text-xs lg:text-sm font-bold text-on-surface outline-none focus:ring-1 focus:ring-primary"
+                className="w-full sm:w-auto bg-surface-container-low border border-outline-variant rounded-xl px-3.5 py-2.5 text-xs lg:text-sm font-bold text-on-surface outline-none focus:ring-1 focus:ring-primary"
               >
                 <option value="all">Semua Status SKU</option>
                 <option value="01_Fast">01_Fast Moving</option>

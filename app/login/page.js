@@ -43,10 +43,12 @@ function LoginPageContent() {
   };
 
   return (
-    <main className="min-h-screen w-full flex items-center justify-center bg-background px-4">
-      <div className="w-full max-w-sm rounded-xl border border-outline/20 bg-surface p-6 shadow-md">
-        <h1 className="text-xl font-semibold text-on-surface mb-2">Login</h1>
-        <p className="text-sm text-on-surface-variant mb-6">Enter your username and password to continue.</p>
+    <main className="min-h-[100dvh] sm:min-h-screen w-full flex items-start sm:items-center justify-center bg-background px-0 sm:px-4 pt-[max(env(safe-area-inset-top),0px)] pb-[max(env(safe-area-inset-bottom),0px)]">
+      <div className="w-full min-h-[100dvh] sm:min-h-0 sm:max-w-sm rounded-none sm:rounded-xl border-0 sm:border border-outline/20 bg-surface p-4 sm:p-6 shadow-none sm:shadow-md">
+        <h1 className="text-lg sm:text-xl font-semibold text-on-surface mb-2">Login</h1>
+        <p className="text-sm text-on-surface-variant mb-5 sm:mb-6">
+          Enter your username and password to continue.
+        </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -58,7 +60,7 @@ function LoginPageContent() {
               type="text"
               value={username}
               onChange={(event) => setUsername(event.target.value)}
-              className="w-full rounded-md border border-outline/30 bg-background px-3 py-2 text-on-surface outline-none focus:ring-2 focus:ring-primary"
+              className="w-full rounded-md border border-outline/30 bg-background px-3 py-3 sm:py-2 text-base sm:text-sm text-on-surface outline-none focus:ring-2 focus:ring-primary"
               autoComplete="username"
               required
             />
@@ -73,17 +75,17 @@ function LoginPageContent() {
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="w-full rounded-md border border-outline/30 bg-background px-3 py-2 text-on-surface outline-none focus:ring-2 focus:ring-primary"
+              className="w-full rounded-md border border-outline/30 bg-background px-3 py-3 sm:py-2 text-base sm:text-sm text-on-surface outline-none focus:ring-2 focus:ring-primary"
               autoComplete="current-password"
               required
             />
           </div>
 
-          {error ? <p className="text-sm text-red-500">{error}</p> : null}
+          {error ? <p className="text-sm text-red-500 break-words">{error}</p> : null}
 
           <button
             type="submit"
-            className="w-full rounded-md bg-primary px-4 py-2 text-white disabled:opacity-50"
+            className="w-full rounded-md bg-primary px-4 py-3 sm:py-2 text-white text-base sm:text-sm disabled:opacity-50"
             disabled={isSubmitting}
           >
             {isSubmitting ? 'Signing in...' : 'Sign in'}
@@ -96,7 +98,13 @@ function LoginPageContent() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="p-4 text-sm text-muted-foreground">Loading...</div>}>
+    <Suspense
+      fallback={
+        <div className="min-h-[100dvh] sm:min-h-screen p-4 text-sm text-muted-foreground">
+          Loading...
+        </div>
+      }
+    >
       <LoginPageContent />
     </Suspense>
   );

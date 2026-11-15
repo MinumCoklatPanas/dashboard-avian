@@ -7,7 +7,7 @@ export default function HeaderNav({ activeTab, onChangeTab, onChangeProduksiSubm
 
   return (
     <header className="sticky top-0 z-50 w-full bg-surface border-b border-outline-variant shadow-sm">
-      <div className="flex items-center justify-between px-4 lg:px-6 h-14 border-b border-outline-variant/50 gap-4">
+      <div className="flex items-center justify-between px-3 sm:px-4 lg:px-6 h-14 border-b border-outline-variant/50 gap-2 sm:gap-4">
         <button
           type="button"
           onClick={() => onChangeTab('hasil_produksi')}
@@ -17,12 +17,12 @@ export default function HeaderNav({ activeTab, onChangeTab, onChangeProduksiSubm
           <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-sm group-hover:scale-105 transition-transform">
             <span className="material-symbols-outlined text-xl">factory</span>
           </div>
-          <div className="text-left">
+          <div className="text-left min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-black text-on-surface tracking-tight leading-tight">POWER</span>
+              <span className="text-xs sm:text-sm font-black text-on-surface tracking-tight leading-tight truncate">POWER</span>
               <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-primary/15 text-primary border border-primary/25 font-mono">OEE</span>
             </div>
-            <p className="text-[10px] text-on-surface-variant font-label-mono leading-none">Pipa &amp; Fitting</p>
+            <p className="hidden sm:block text-[10px] text-on-surface-variant font-label-mono leading-none">Pipa &amp; Fitting</p>
           </div>
         </button>
 
