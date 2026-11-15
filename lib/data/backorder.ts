@@ -1,0 +1,17 @@
+export type BoPlant = 'Wotan' | 'Cirebon' | 'all';
+export type BoLine = 'pipa' | 'fitting' | 'selang';
+
+export const backOrderData = [
+  { id: 1, plant: 'Wotan', category: 'POWER', line: 'pipa', desc: 'Pow Pipa 4m C1/2', velocity: '01_Fast', boTon: 45.0, rateTon: 2.85 },
+  { id: 2, plant: 'Wotan', category: 'POWER', line: 'pipa', desc: 'Pow Pipa 4m D2 1.2', velocity: '02_Moderate', boTon: 25.0, rateTon: 2.75 },
+  { id: 3, plant: 'Wotan', category: 'POWER MAX', line: 'pipa', desc: 'Power Max Pipa Conduit 2.9m OD 20mm', velocity: '02_Moderate', boTon: 6.53, rateTon: 2.17 },
+  { id: 4, plant: 'Wotan', category: 'QUAD', line: 'pipa', desc: 'Quad Pipa 4m D4', velocity: '01_Fast', boTon: 8.21, rateTon: 3.56 },
+  { id: 5, plant: 'Wotan', category: 'FITTING', line: 'fitting', desc: 'Elbow AW 2" Power', velocity: '01_Fast', boTon: 7.6, rateTon: 1.9 },
+
+  { id: 6, plant: 'Cirebon', category: 'POWER', line: 'pipa', desc: 'Pow Pipa 4m C1/2', velocity: '01_Fast', boTon: 14.36, rateTon: 2.47 },
+  { id: 7, plant: 'Cirebon', category: 'POWER', line: 'pipa', desc: 'Pow Pipa 4m D2 1.2', velocity: '02_Moderate', boTon: 14.22, rateTon: 2.75 },
+  { id: 8, plant: 'Cirebon', category: 'POWER MAX', line: 'pipa', desc: 'Power Max Pipa HDPE PN16 110mm', velocity: '01_Fast', boTon: 11.8, rateTon: 3.2 },
+  { id: 9, plant: 'Cirebon', category: 'FITTING', line: 'fitting', desc: 'Socket D-AW 3" Power Max', velocity: '02_Moderate', boTon: 4.15, rateTon: 1.2 },
+  { id: 10, plant: 'Cirebon', category: 'SELANG', line: 'selang', desc: 'Selang Spiral PVC 2" Blue', velocity: '01_Fast', boTon: 5.4, rateTon: 1.8 },
+  { id: 11, plant: 'Cirebon', category: 'SELANG', line: 'selang', desc: 'Selang Dof 5/8" Super Flex', velocity: '02_Moderate', boTon: 3.25, rateTon: 1.1 },
+] as const;
