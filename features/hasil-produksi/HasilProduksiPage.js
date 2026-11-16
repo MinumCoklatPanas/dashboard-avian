@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { getHasilProduksiMetrics, getMachineData, getHarianProduksiData, periodLabel, periodDescription } from '../../lib/data/hasilProduksi';
+import { getHasilProduksiMetrics, getMachineData, getHarianProduksiData, getHarianProduksiLineData, periodLabel, periodDescription } from '../../lib/data/hasilProduksi';
 
 export default function HasilProduksiPage({ produksiSubmenu = 'hasil_produksi', onChangeProduksiSubmenu }) {
   const [period, setPeriod] = useState('monthly');
@@ -23,7 +23,9 @@ export default function HasilProduksiPage({ produksiSubmenu = 'hasil_produksi', 
   const cards = metrics.cards;
   const kpi = metrics.kpi;
   const harianData = useMemo(() => getHarianProduksiData(factory, period), [factory, period]);
+  const harianLineData = useMemo(() => getHarianProduksiLineData(factory, period), [factory, period]);
   const isYearly = period === 'yearly';
+  const formatTon = (value) => Number(value || 0).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   const performaCards = useMemo(() => {
     const typeOrder = ['Extruder', 'Injection', 'Selang'];
@@ -274,8 +276,10 @@ export default function HasilProduksiPage({ produksiSubmenu = 'hasil_produksi', 
             { key: 'pipa', title: `Hasil Produksi Pipa${factory === 'all' ? ' (Wotan + Cirebon)' : ''}`, color: 'text-primary', icon: 'precision_manufacturing' },
             { key: 'fitting', title: `Hasil Produksi Fitting${factory === 'all' ? ' (Wotan + Cirebon)' : ''}`, color: 'text-secondary', icon: 'grid_view' },
             { key: 'selang', title: 'Hasil Produksi Selang', color: 'text-cyan-600', icon: 'water' },
-          ].filter((cfg) => (cfg.key === 'selang' ? harianData.selang.length > 0 : true)).map((cfg) => {
-            const rows = harianData[cfg.key] || [];
+          ].filter((cfg) => (cfg.key === 'selang' ? (harianLineData.selang?.rows || []).length > 0 : true)).map((cfg) => {
+            const sectionData = harianLineData[cfg.key] || { columns: [], rows: [] };
+            const columns = sectionData.columns || [];
+            const rows = sectionData.rows || [];
             return (
               <div key={cfg.key} className="space-y-3">
                 <button
@@ -298,28 +302,49 @@ export default function HasilProduksiPage({ produksiSubmenu = 'hasil_produksi', 
                   id={`hasil-produksi-${cfg.key}`}
                   className={`${openHasilSection === cfg.key ? 'block' : 'hidden'} overflow-x-auto custom-scrollbar border border-outline-variant/50 rounded-xl`}
                 >
-                  <table className="w-full border-collapse text-left text-sm text-on-surface min-w-[760px]">
+                  <table className="w-full border-collapse text-[16px] text-on-surface min-w-max">
                     <thead>
                       <tr className="bg-surface-container-high/80 border-b border-outline-variant/60 font-label-mono text-xs text-on-surface-variant uppercase tracking-wider">
-                        <th className="px-4 py-3 font-bold">{isYearly ? 'Bulan' : 'Tanggal'}</th>
-                        <th className="px-4 py-3 font-bold text-right">Target</th>
-                        <th className="px-4 py-3 font-bold text-right">Aktual</th>
-                        <th className="px-4 py-3 font-bold text-right">Pencapaian</th>
-                        <th className="px-4 py-3 font-bold text-center">Status</th>
+                        <th rowSpan={2} className="px-4 py-3 font-bold text-left sticky left-0 z-10 bg-surface-container-high/80 min-w-[240px]">Lini &amp; Product Family</th>
+                        <th colSpan={3} className="px-3 py-3 font-bold text-center whitespace-nowrap min-w-[300px] border-l border-outline-variant/30">Hasil Produksi Bulanan (Ton/Hari)</th>
+                        {columns.map((col) => (
+                          <th rowSpan={2} key={`${cfg.key}-${col.key}-col`} className="px-3 py-3 font-bold text-center whitespace-nowrap min-w-[96px] border-l border-outline-variant/30">
+                            {col.label}
+                          </th>
+                        ))}
+                      </tr>
+                      <tr className="bg-surface-container-low/70 border-b border-outline-variant/60 font-label-mono text-[16px] text-on-surface-variant uppercase tracking-wider">
+                        <th className="px-2 py-2 font-bold text-center border-l border-outline-variant/30 whitespace-nowrap min-w-[100px] text-[11px]">Target Pabrik</th>
+                        <th className="px-2 py-2 font-bold text-center border-l border-outline-variant/30 whitespace-nowrap min-w-[100px] text-[11px]">Aktual</th>
+                        <th className="px-2 py-2 font-bold text-center border-l border-outline-variant/30 whitespace-nowrap min-w-[100px] text-[11px]">% Pencapaian</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-outline-variant/30">
-                      {rows.map((row) => (
-                        <tr key={`${cfg.key}-${row.date}`} className="hover:bg-surface-container-high/35 transition-colors">
-                          <td className="px-4 py-3 font-bold">{row.dateLabel}</td>
-                          <td className="px-4 py-3 text-right font-mono">{row.target.toFixed(2)}</td>
-                          <td className="px-4 py-3 text-right font-mono">{row.actual.toFixed(2)}</td>
-                          <td className={`px-4 py-3 text-right font-mono font-black ${row.met ? 'text-emerald-600' : 'text-red-600'}`}>{row.pct.toFixed(1)}%</td>
-                          <td className="px-4 py-3 text-center">
-                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-black border uppercase ${row.met ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : 'bg-red-500/10 text-red-600 border-red-500/20'}`}>
-                              {row.met ? 'Tercapai' : 'Di Bawah'}
-                            </span>
+                      {rows.map((line) => (
+                        <tr key={`${cfg.key}-${line.key}`} className={`hover:bg-surface-container-high/25 transition-colors ${line.isTotal ? 'bg-surface-container-high/20' : ''}`}>
+                          <td className={`px-4 py-3 sticky left-0 z-[1] bg-surface ${line.isTotal ? 'font-black uppercase text-on-surface' : 'font-bold text-on-surface-variant'}`}>
+                            {line.label}
                           </td>
+                          <td className="px-3 py-3 text-center font-mono font-bold border-l border-outline-variant/20">
+                            {formatTon(line.monthly.target)}
+                          </td>
+                          <td className="px-3 py-3 text-center font-mono font-black border-l border-outline-variant/20">
+                            {formatTon(line.monthly.actual)}
+                          </td>
+                          <td className={`px-3 py-3 text-center font-mono font-black border-l border-outline-variant/20 ${line.monthly.pct >= 100 ? 'text-emerald-600' : 'text-red-600'}`}>
+                            {line.monthly.pct.toFixed(1)}%
+                          </td>
+                          {line.cells.map((cell) => (
+                            <td key={`${cfg.key}-${line.key}-${cell.key}`} className="px-3 py-3 text-center border-l border-outline-variant/20">
+                              {cell.actual === 0 ? (
+                                <span className="text-on-surface-variant opacity-40 font-mono">0</span>
+                              ) : (
+                                <span className={`inline-flex items-center justify-center px-2 py-1 rounded-lg font-mono text-[16px] font-black border whitespace-nowrap ${cell.met ? 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30' : 'bg-red-500/15 text-red-600 border-red-500/30'}`}>
+                                  {formatTon(cell.actual)}
+                                </span>
+                              )}
+                            </td>
+                          ))}
                         </tr>
                       ))}
                     </tbody>
