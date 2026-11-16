@@ -7,7 +7,7 @@ export default function HasilProduksiPage({ produksiSubmenu = 'hasil_produksi', 
   const [period, setPeriod] = useState('monthly');
   const [factory, setFactory] = useState('all');
   const [openGroups, setOpenGroups] = useState({});
-  const [openHasilSection, setOpenHasilSection] = useState('pipa');
+  const [openHasilSections, setOpenHasilSections] = useState({ pipa: true });
 
   const isHasil = produksiSubmenu === 'hasil_produksi';
   const isPerforma = produksiSubmenu === 'performa_mesin';
@@ -101,8 +101,13 @@ export default function HasilProduksiPage({ produksiSubmenu = 'hasil_produksi', 
     }));
   };
 
+  const isHasilSectionOpen = (section) => openHasilSections[section] === true;
+
   const toggleHasilSection = (section) => {
-    setOpenHasilSection((prev) => (prev === section ? '' : section));
+    setOpenHasilSections((prev) => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
   };
 
   return (
@@ -285,7 +290,7 @@ export default function HasilProduksiPage({ produksiSubmenu = 'hasil_produksi', 
                 <button
                   type="button"
                   onClick={() => toggleHasilSection(cfg.key)}
-                  aria-expanded={openHasilSection === cfg.key}
+                  aria-expanded={isHasilSectionOpen(cfg.key)}
                   aria-controls={`hasil-produksi-${cfg.key}`}
                   className={`w-full text-left px-3 py-2.5 rounded-lg border border-outline-variant/50 bg-surface-container-high/40 hover:bg-surface-container-high transition-colors flex items-center justify-between gap-2 ${cfg.color}`}
                 >
@@ -294,13 +299,13 @@ export default function HasilProduksiPage({ produksiSubmenu = 'hasil_produksi', 
                     {cfg.title}
                   </h4>
                   <span className="material-symbols-outlined text-on-surface-variant text-base">
-                    {openHasilSection === cfg.key ? 'expand_less' : 'expand_more'}
+                    {isHasilSectionOpen(cfg.key) ? 'expand_less' : 'expand_more'}
                   </span>
                 </button>
 
                 <div
                   id={`hasil-produksi-${cfg.key}`}
-                  className={`${openHasilSection === cfg.key ? 'block' : 'hidden'} overflow-x-auto custom-scrollbar border border-outline-variant/50 rounded-xl`}
+                  className={`${isHasilSectionOpen(cfg.key) ? 'block' : 'hidden'} overflow-x-auto custom-scrollbar border border-outline-variant/50 rounded-xl`}
                 >
                   <table className="w-full border-collapse text-[16px] text-on-surface min-w-max">
                     <thead>
