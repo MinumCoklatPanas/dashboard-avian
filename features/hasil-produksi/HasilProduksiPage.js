@@ -1,13 +1,16 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { getHasilProduksiMetrics, getMachineData, getHarianProduksiData, getHarianProduksiLineData, periodLabel, periodDescription } from '../../lib/data/hasilProduksi';
+import { getHasilProduksiMetrics, getMachineData, getHarianProduksiLineData, periodLabel, periodDescription } from '../../lib/data/hasilProduksi';
 
 export default function HasilProduksiPage({ produksiSubmenu = 'hasil_produksi', onChangeProduksiSubmenu }) {
   const [period, setPeriod] = useState('monthly');
   const [factory, setFactory] = useState('all');
   const [openGroups, setOpenGroups] = useState({});
   const [openHasilSections, setOpenHasilSections] = useState({ pipa: true });
+  const [dailyApiData, setDailyApiData] = useState(null);
+  const [dailyApiLoading, setDailyApiLoading] = useState(false);
+  const [dailyApiError, setDailyApiError] = useState('');
 
   const isHasil = produksiSubmenu === 'hasil_produksi';
   const isPerforma = produksiSubmenu === 'performa_mesin';
@@ -20,11 +23,55 @@ export default function HasilProduksiPage({ produksiSubmenu = 'hasil_produksi', 
 
   const metrics = useMemo(() => getHasilProduksiMetrics(factory, period), [factory, period]);
   const machineData = useMemo(() => getMachineData(factory, 'monthly'), [factory]);
-  const cards = metrics.cards;
-  const kpi = metrics.kpi;
-  const harianData = useMemo(() => getHarianProduksiData(factory, period), [factory, period]);
   const harianLineData = useMemo(() => getHarianProduksiLineData(factory, period), [factory, period]);
   const isYearly = period === 'yearly';
+  const isDailyBackendMode = isHasil && period === 'daily';
+
+  useEffect(() => {
+    if (!isDailyBackendMode) {
+      setDailyApiData(null);
+      setDailyApiError('');
+      setDailyApiLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    const fetchDailyData = async () => {
+      try {
+        setDailyApiLoading(true);
+        setDailyApiError('');
+        const response = await fetch(`/api/hasil-produksi/daily?factory=${factory}`, {
+          method: 'GET',
+          cache: 'no-store',
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          const failed = await response.json().catch(() => null);
+          throw new Error(failed?.error || failed?.message || 'Gagal mengambil data harian produksi.');
+        }
+
+        const payload = await response.json();
+        setDailyApiData(payload);
+      } catch (error) {
+        if (error?.name === 'AbortError') return;
+        setDailyApiData(null);
+        setDailyApiError(error instanceof Error ? error.message : 'Gagal mengambil data harian produksi.');
+      } finally {
+        if (!controller.signal.aborted) {
+          setDailyApiLoading(false);
+        }
+      }
+    };
+
+    fetchDailyData();
+    return () => controller.abort();
+  }, [factory, isDailyBackendMode]);
+
+  const activeMetrics = isDailyBackendMode && dailyApiData?.metrics ? dailyApiData.metrics : metrics;
+  const cards = activeMetrics.cards;
+  const kpi = activeMetrics.kpi;
+  const activeHarianLineData = isDailyBackendMode && dailyApiData?.lineData ? dailyApiData.lineData : harianLineData;
   const formatTon = (value) => Number(value || 0).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   const performaCards = useMemo(() => {
@@ -184,6 +231,20 @@ export default function HasilProduksiPage({ produksiSubmenu = 'hasil_produksi', 
         </div>
       </div>
 
+      {isHasil && isDailyBackendMode && dailyApiLoading ? (
+        <div className="bg-surface-container border border-outline-variant rounded-xl px-4 py-3 text-xs font-bold text-on-surface-variant flex items-center gap-2">
+          <span className="material-symbols-outlined text-base animate-pulse">sync</span>
+          Memuat data hasil produksi harian dari backend...
+        </div>
+      ) : null}
+
+      {isHasil && isDailyBackendMode && dailyApiError ? (
+        <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-xs font-bold text-red-600 flex items-center gap-2">
+          <span className="material-symbols-outlined text-base">error</span>
+          {dailyApiError}
+        </div>
+      ) : null}
+
       {isHasil ? (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-card-gap">
         <div className="bg-surface-container border border-outline-variant p-4 rounded-xl flex items-center justify-between shadow-sm">
@@ -281,8 +342,8 @@ export default function HasilProduksiPage({ produksiSubmenu = 'hasil_produksi', 
             { key: 'pipa', title: `Hasil Produksi Pipa${factory === 'all' ? ' (Wotan + Cirebon)' : ''}`, color: 'text-primary', icon: 'precision_manufacturing' },
             { key: 'fitting', title: `Hasil Produksi Fitting${factory === 'all' ? ' (Wotan + Cirebon)' : ''}`, color: 'text-secondary', icon: 'grid_view' },
             { key: 'selang', title: 'Hasil Produksi Selang', color: 'text-cyan-600', icon: 'water' },
-          ].filter((cfg) => (cfg.key === 'selang' ? (harianLineData.selang?.rows || []).length > 0 : true)).map((cfg) => {
-            const sectionData = harianLineData[cfg.key] || { columns: [], rows: [] };
+          ].filter((cfg) => (cfg.key === 'selang' ? (activeHarianLineData.selang?.rows || []).length > 0 : true)).map((cfg) => {
+            const sectionData = activeHarianLineData[cfg.key] || { columns: [], rows: [] };
             const columns = sectionData.columns || [];
             const rows = sectionData.rows || [];
             return (
