@@ -25,10 +25,10 @@ export default function HasilProduksiPage({ produksiSubmenu = 'hasil_produksi', 
   const machineData = useMemo(() => getMachineData(factory, 'monthly'), [factory]);
   const harianLineData = useMemo(() => getHarianProduksiLineData(factory, period), [factory, period]);
   const isYearly = period === 'yearly';
-  const isDailyBackendMode = isHasil && period === 'daily';
+  const isBackendPeriodMode = isHasil && (period === 'daily' || period === 'weekly');
 
   useEffect(() => {
-    if (!isDailyBackendMode) {
+    if (!isBackendPeriodMode) {
       setDailyApiData(null);
       setDailyApiError('');
       setDailyApiLoading(false);
@@ -40,7 +40,7 @@ export default function HasilProduksiPage({ produksiSubmenu = 'hasil_produksi', 
       try {
         setDailyApiLoading(true);
         setDailyApiError('');
-        const response = await fetch(`/api/hasil-produksi/daily?factory=${factory}`, {
+        const response = await fetch(`/api/hasil-produksi/${period}?factory=${factory}`, {
           method: 'GET',
           cache: 'no-store',
           signal: controller.signal,
@@ -66,12 +66,12 @@ export default function HasilProduksiPage({ produksiSubmenu = 'hasil_produksi', 
 
     fetchDailyData();
     return () => controller.abort();
-  }, [factory, isDailyBackendMode]);
+  }, [factory, isBackendPeriodMode, period]);
 
-  const activeMetrics = isDailyBackendMode && dailyApiData?.metrics ? dailyApiData.metrics : metrics;
+  const activeMetrics = isBackendPeriodMode && dailyApiData?.metrics ? dailyApiData.metrics : metrics;
   const cards = activeMetrics.cards;
   const kpi = activeMetrics.kpi;
-  const activeHarianLineData = isDailyBackendMode && dailyApiData?.lineData ? dailyApiData.lineData : harianLineData;
+  const activeHarianLineData = isBackendPeriodMode && dailyApiData?.lineData ? dailyApiData.lineData : harianLineData;
   const formatTon = (value) => Number(value || 0).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   const performaCards = useMemo(() => {
@@ -231,14 +231,14 @@ export default function HasilProduksiPage({ produksiSubmenu = 'hasil_produksi', 
         </div>
       </div>
 
-      {isHasil && isDailyBackendMode && dailyApiLoading ? (
+      {isHasil && isBackendPeriodMode && dailyApiLoading ? (
         <div className="bg-surface-container border border-outline-variant rounded-xl px-4 py-3 text-xs font-bold text-on-surface-variant flex items-center gap-2">
           <span className="material-symbols-outlined text-base animate-pulse">sync</span>
-          Memuat data hasil produksi harian dari backend...
+          Memuat data hasil produksi {periodLabel[period]?.toLowerCase() || period} dari backend...
         </div>
       ) : null}
 
-      {isHasil && isDailyBackendMode && dailyApiError ? (
+      {isHasil && isBackendPeriodMode && dailyApiError ? (
         <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-xs font-bold text-red-600 flex items-center gap-2">
           <span className="material-symbols-outlined text-base">error</span>
           {dailyApiError}
