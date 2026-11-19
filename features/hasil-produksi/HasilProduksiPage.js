@@ -25,7 +25,7 @@ export default function HasilProduksiPage({ produksiSubmenu = 'hasil_produksi', 
   const machineData = useMemo(() => getMachineData(factory, 'monthly'), [factory]);
   const harianLineData = useMemo(() => getHarianProduksiLineData(factory, period), [factory, period]);
   const isYearly = period === 'yearly';
-  const isBackendPeriodMode = isHasil && (period === 'daily' || period === 'weekly');
+  const isBackendPeriodMode = isHasil && (period === 'daily' || period === 'weekly' || period === 'monthly');
 
   useEffect(() => {
     if (!isBackendPeriodMode) {
@@ -260,7 +260,7 @@ export default function HasilProduksiPage({ produksiSubmenu = 'hasil_produksi', 
           <div>
             <p className="font-label-mono text-on-surface-variant text-xs uppercase font-extrabold">Total Aktual Pabrik</p>
             <h4 className="font-display-lg text-xl font-black text-primary mt-1 font-mono">{kpi.actual}</h4>
-            <p className="text-[10px] text-on-surface-variant/80 font-bold mt-1 uppercase">1 Ags 2026 - 19 Ags 2026</p>
+            <p className="text-[10px] text-on-surface-variant/80 font-bold mt-1 uppercase">{periodDescription[period]}</p>
           </div>
           <span className="material-symbols-outlined text-primary bg-primary/10 p-2.5 rounded-xl">fact_check</span>
         </div>
