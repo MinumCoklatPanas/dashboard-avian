@@ -25,7 +25,7 @@ export default function HasilProduksiPage({ produksiSubmenu = 'hasil_produksi', 
   const machineData = useMemo(() => getMachineData(factory, 'monthly'), [factory]);
   const harianLineData = useMemo(() => getHarianProduksiLineData(factory, period), [factory, period]);
   const isYearly = period === 'yearly';
-  const isBackendPeriodMode = isHasil && (period === 'daily' || period === 'weekly' || period === 'monthly');
+  const isBackendPeriodMode = isHasil && (period === 'daily' || period === 'weekly' || period === 'monthly' || period === 'yearly');
 
   useEffect(() => {
     if (!isBackendPeriodMode) {
