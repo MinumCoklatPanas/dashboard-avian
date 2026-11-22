@@ -8,6 +8,8 @@ export default function HasilProduksiPage({ produksiSubmenu = 'hasil_produksi', 
   const [factory, setFactory] = useState('all');
   const [openGroups, setOpenGroups] = useState({});
   const [openHasilSections, setOpenHasilSections] = useState({ pipa: true });
+  const [hpFiltersExpanded, setHpFiltersExpanded] = useState(false);
+  const [hpDashboardOpen, setHpDashboardOpen] = useState(false);
   const [dailyApiData, setDailyApiData] = useState(null);
   const [dailyApiLoading, setDailyApiLoading] = useState(false);
   const [dailyApiError, setDailyApiError] = useState('');
@@ -20,6 +22,23 @@ export default function HasilProduksiPage({ produksiSubmenu = 'hasil_produksi', 
       setFactory('wotan');
     }
   }, [isPerforma, factory]);
+
+  useEffect(() => {
+    const htmlEl = document.documentElement;
+    const bodyEl = document.body;
+    if (hpDashboardOpen) {
+      htmlEl.classList.add('hp-dashboard-open');
+      bodyEl.classList.add('hp-dashboard-open');
+    } else {
+      htmlEl.classList.remove('hp-dashboard-open');
+      bodyEl.classList.remove('hp-dashboard-open');
+    }
+
+    return () => {
+      htmlEl.classList.remove('hp-dashboard-open');
+      bodyEl.classList.remove('hp-dashboard-open');
+    };
+  }, [hpDashboardOpen]);
 
   const metrics = useMemo(() => getHasilProduksiMetrics(factory, period), [factory, period]);
   const machineData = useMemo(() => getMachineData(factory, 'monthly'), [factory]);
@@ -157,12 +176,26 @@ export default function HasilProduksiPage({ produksiSubmenu = 'hasil_produksi', 
     }));
   };
 
+  const panelHeaderIcon = isHasil ? 'analytics' : 'speed';
+  const panelHeaderTitle = isHasil ? 'Hasil Produksi Pabrik' : 'Performa Mesin Pabrik';
+  const panelHeaderDesc = isHasil
+    ? 'Monitoring realisasi produksi dan target output pabrik'
+    : 'Monitoring efektivitas operasional, OEE, dan rincian performa per mesin';
+
   return (
     <section id="panel-hasil_produksi" className="panel-transition space-y-gutter-lg">
       <div className="pb-3 border-b border-outline-variant/40">
-        <div className="flex flex-wrap items-center gap-3">
-          <h2 className="font-headline-lg text-2xl lg:text-3xl font-black text-on-surface tracking-tight">{isHasil ? 'Hasil Produksi Pabrik' : 'Performa Mesin Pabrik'}</h2>
-          <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-surface-container-high border border-outline-variant/60 shadow-inner">
+        <div className="flex items-center gap-3">
+          <div id="hp-header-icon" className="text-on-surface bg-surface-container-highest w-11 h-11 rounded-xl border border-outline-variant shrink-0 relative">
+            <span className="material-symbols-outlined absolute inset-0 m-auto w-fit h-fit text-2xl leading-none">
+              {panelHeaderIcon}
+            </span>
+          </div>
+          <div>
+            <h2 id="hp-header-title" className="font-headline-lg text-2xl lg:text-3xl font-black text-on-surface tracking-tight">{panelHeaderTitle}</h2>
+            <p id="hp-header-desc" className="text-xs text-on-surface-variant font-medium mt-1">{panelHeaderDesc}</p>
+          </div>
+          <div className="ml-auto inline-flex items-center gap-1 p-1 rounded-xl bg-surface-container-high border border-outline-variant/60 shadow-inner">
             <button
               onClick={() => onChangeProduksiSubmenu?.('hasil_produksi')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold font-label-mono shadow-sm transition-all ${isHasil ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest'}`}
@@ -179,55 +212,112 @@ export default function HasilProduksiPage({ produksiSubmenu = 'hasil_produksi', 
             </button>
           </div>
         </div>
-        <p className="text-xs text-on-surface-variant font-medium mt-1">
-          {isHasil ? 'Monitoring realisasi produksi dan target output pabrik' : 'Monitoring efektivitas operasional, OEE, dan rincian performa per mesin'}
-        </p>
       </div>
 
-      <div className="relative sm:sticky sm:top-[106px] z-30 bg-surface/95 backdrop-blur-md py-2.5 px-3 sm:px-4 rounded-2xl border border-outline-variant/60 shadow-sm flex flex-wrap items-center justify-between gap-3 select-none">
-        <div className="flex flex-wrap items-center gap-2 min-w-0">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-on-surface-variant mr-1">
-            <span className="material-symbols-outlined text-primary text-base">calendar_month</span>
-            <span>Periode:</span>
+      <div id="hp-sticky-bar" className={`sticky top-[106px] z-30 bg-surface/95 backdrop-blur-md rounded-2xl border border-outline-variant/60 shadow-sm select-none ${hpFiltersExpanded ? 'hp-filters-expanded' : ''}`}>
+        <button
+          id="hp-filter-toggle"
+          type="button"
+          aria-controls="hp-filter-options"
+          aria-expanded={hpFiltersExpanded}
+          onClick={() => setHpFiltersExpanded((prev) => !prev)}
+        >
+          <span id="hp-filter-toggle-icon" className="material-symbols-outlined text-sm">tune</span>
+          <span id="hp-filter-toggle-label">Filter Produksi</span>
+        </button>
+
+        <div id="hp-filter-options" className="flex flex-wrap items-center justify-between gap-3">
+          <div id="hp-period-filter-container" aria-label="Filter periode hasil produksi" className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-on-surface-variant mr-1">
+              <span className="material-symbols-outlined text-primary text-base">calendar_month</span>
+              <span>Periode:</span>
+            </div>
+            {[
+              { key: 'daily', id: 'btn-hp-period-daily', label: 'Harian' },
+              { key: 'weekly', id: 'btn-hp-period-weekly', label: 'Mingguan (H-7)' },
+              { key: 'monthly', id: 'btn-hp-period-monthly', label: 'Bulanan' },
+              { key: 'yearly', id: 'btn-hp-period-yearly', label: 'Tahunan' },
+            ].map((p) => (
+              <button
+                key={p.key}
+                id={p.id}
+                onClick={() => setPeriod(p.key)}
+                className={`hp-period-btn px-3 py-1.5 rounded-lg text-xs font-bold font-label-mono transition-all active:scale-95 flex items-center gap-1.5 ${
+                  period === p.key ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest'
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+            <span id="hp-active-period-label" className="ml-1 text-[11px] font-semibold text-on-surface-variant bg-surface-container px-2.5 py-1 rounded-md border border-outline-variant/40">
+              {periodLabel[period]}: {periodDescription[period]}
+            </span>
           </div>
-          {['daily', 'weekly', 'monthly', 'yearly'].map((p) => (
-            <button
-              key={p}
-              onClick={() => setPeriod(p)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold font-label-mono transition-all active:scale-95 ${
-                period === p ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest'
-              }`}
-            >
-              {periodLabel[p]}
-            </button>
-          ))}
-          <span className="ml-1 w-full sm:w-auto text-[13px] sm:text-[14px] font-semibold text-on-surface-variant bg-surface-container px-2.5 py-1 rounded-md border border-outline-variant/40">
-            {periodLabel[period]}: {periodDescription[period]}
-          </span>
+
+          <div className="flex items-center gap-1.5 bg-surface-container-high p-1 rounded-xl border border-outline-variant/60 shadow-sm shrink-0">
+            {[
+              { id: 'all', btnId: 'btn-factory-all', label: 'All', icon: 'domain' },
+              { id: 'wotan', btnId: 'btn-factory-wotan', label: 'IPW', icon: 'factory' },
+              { id: 'cirebon', btnId: 'btn-factory-cirebon', label: 'IPC', icon: 'domain' },
+            ].filter((item) => !(isPerforma && item.id === 'all')).map((item) => (
+              <button
+                key={item.id}
+                id={item.btnId}
+                onClick={() => setFactory(item.id)}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold font-label-mono transition-all duration-200 active:scale-95 ${
+                  factory === item.id ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest'
+                }`}
+              >
+                <span className="material-symbols-outlined text-sm">{item.icon}</span>
+                <span className="font-black">{item.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="w-full sm:w-auto overflow-x-auto custom-scrollbar">
-          <div className="inline-flex items-center gap-1.5 bg-surface-container-high p-1 rounded-xl border border-outline-variant/60 shadow-sm shrink-0 min-w-max">
-          {[
-            { id: 'wotan', label: 'AAIP Wotan', sub: 'Pipa & Fitting', icon: 'factory' },
-            { id: 'cirebon', label: 'AAIP Cirebon', sub: 'Pipa, Fitting & Selang', icon: 'domain' },
-            { id: 'all', label: 'Semua Pabrik', sub: 'Wotan & Cirebon', icon: 'domain' },
-          ].filter((item) => !(isPerforma && item.id === 'all')).map((item) => (
+        <div id="hp-dashboard-picker">
+          <button
+            id="hp-dashboard-trigger"
+            type="button"
+            aria-controls="hp-dashboard-overlay"
+            aria-expanded={hpDashboardOpen}
+            onClick={() => setHpDashboardOpen(true)}
+          >
+            <span className="material-symbols-outlined text-sm">layers</span>
+            <span id="hp-dashboard-trigger-desktop">Operasional Produksi: Production Summary</span>
+            <span id="hp-dashboard-trigger-mobile">Dashboard Produksi</span>
+            <span className="material-symbols-outlined text-sm">expand_more</span>
+          </button>
+        </div>
+      </div>
+
+      <div
+        id="hp-dashboard-overlay"
+        aria-hidden={!hpDashboardOpen}
+        className={hpDashboardOpen ? 'is-open' : ''}
+        onClick={() => setHpDashboardOpen(false)}
+      >
+        <div id="hp-dashboard-menu" role="dialog" aria-label="Pilih dashboard Produksi" onClick={(event) => event.stopPropagation()}>
+          <div id="hp-dashboard-menu-header" className="px-2 py-2 border-b border-outline-variant/50">
+            <span className="text-xs font-black text-on-surface uppercase">Operasional Produksi</span>
             <button
-              key={item.id}
-              onClick={() => setFactory(item.id)}
-              className={`shrink-0 flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold font-label-mono transition-all duration-200 ${
-                factory === item.id ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest'
-              }`}
+              id="hp-dashboard-sheet-close"
+              type="button"
+              aria-label="Tutup pilihan dashboard"
+              className="material-symbols-outlined text-on-surface-variant"
+              onClick={() => setHpDashboardOpen(false)}
             >
-              <span className="material-symbols-outlined text-sm">{item.icon}</span>
-              <div className="text-left">
-                <span className="block leading-tight font-black">{item.label}</span>
-                <span className="block text-[9px] opacity-80 font-normal">{item.sub}</span>
-              </div>
+              close
             </button>
-          ))}
           </div>
+          <button type="button" className="hp-dashboard-option flex items-center justify-between rounded-lg bg-[#e2f2f4] text-[#2b6d7a] px-3 py-3 mt-2 text-xs font-black" onClick={() => setHpDashboardOpen(false)}>
+            <span>1 &nbsp; Production Summary</span>
+            <span className="material-symbols-outlined text-sm">check</span>
+          </button>
+          <button type="button" disabled className="hp-dashboard-option flex items-center justify-between rounded-lg px-3 py-3 text-xs font-bold text-on-surface-variant opacity-50 cursor-not-allowed">
+            <span>2 &nbsp; Others</span>
+            <span className="text-[10px]">Segera hadir</span>
+          </button>
         </div>
       </div>
 
@@ -246,6 +336,7 @@ export default function HasilProduksiPage({ produksiSubmenu = 'hasil_produksi', 
       ) : null}
 
       {isHasil ? (
+      <div id={`hasil-produksi-${factory}-elem`} className="space-y-gutter-lg">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-card-gap">
         <div className="bg-surface-container border border-outline-variant p-4 rounded-xl flex items-center justify-between shadow-sm">
           <div>
@@ -272,6 +363,7 @@ export default function HasilProduksiPage({ produksiSubmenu = 'hasil_produksi', 
           </div>
           <span className={`material-symbols-outlined p-2.5 rounded-xl ${parseFloat(kpi.achievement) >= 100 ? 'text-emerald-500 bg-emerald-500/10' : 'text-red-500 bg-red-500/10'}`}>verified</span>
         </div>
+      </div>
       </div>
       ) : null}
 

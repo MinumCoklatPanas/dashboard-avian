@@ -1,4 +1,21 @@
+import { useEffect, useRef, useState } from 'react';
+
 export default function HeaderNav({ activeTab, onChangeTab, onChangeProduksiSubmenu }) {
+  const [isProduksiMenuOpen, setIsProduksiMenuOpen] = useState(false);
+  const produksiMenuRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!produksiMenuRef.current) return;
+      if (!produksiMenuRef.current.contains(event.target)) {
+        setIsProduksiMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const base =
     'header-tab-btn flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold font-label-mono transition-all shrink-0 whitespace-nowrap active:scale-95';
 
@@ -59,11 +76,21 @@ export default function HeaderNav({ activeTab, onChangeTab, onChangeProduksiSubm
       </div>
 
       <div className="w-full bg-surface-container-lowest/80 px-3 lg:px-6 relative z-40">
-        <nav className="flex items-center gap-1.5 py-2 overflow-x-auto custom-scrollbar" id="header-nav-tabs">
-          <div className="relative group shrink-0" id="header-nav-group-produksi">
+        <nav className="flex flex-wrap items-center gap-1.5 py-2 overflow-visible" id="header-nav-tabs">
+          <div
+            ref={produksiMenuRef}
+            className="relative group shrink-0"
+            id="header-nav-group-produksi"
+            onMouseEnter={() => setIsProduksiMenuOpen(true)}
+            onMouseLeave={() => setIsProduksiMenuOpen(false)}
+          >
             <button
               type="button"
-              onClick={() => onChangeProduksiSubmenu(activeTab === 'performa_mesin' ? 'performa_mesin' : 'hasil_produksi')}
+              aria-expanded={isProduksiMenuOpen}
+              onClick={() => {
+                onChangeProduksiSubmenu(activeTab === 'performa_mesin' ? 'performa_mesin' : 'hasil_produksi');
+                setIsProduksiMenuOpen((prev) => !prev);
+              }}
               id="header-link-produksi"
               className={`${base} ${(activeTab === 'hasil_produksi' || activeTab === 'performa_mesin')
                 ? 'bg-primary text-on-primary shadow-sm'
@@ -74,11 +101,20 @@ export default function HeaderNav({ activeTab, onChangeTab, onChangeProduksiSubm
               <span className="material-symbols-outlined text-sm transition-transform duration-200 group-hover:rotate-180">expand_more</span>
             </button>
 
-            <div className="absolute left-0 top-full pt-1.5 w-60 opacity-0 invisible translate-y-1 group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 transition-all duration-200 z-50 pointer-events-none group-hover:pointer-events-auto">
+            <div
+              className={`absolute left-0 top-full pt-1.5 w-60 transition-all duration-200 z-50 ${
+                isProduksiMenuOpen
+                  ? 'opacity-100 visible translate-y-0 pointer-events-auto'
+                  : 'opacity-0 invisible translate-y-1 pointer-events-none'
+              }`}
+            >
               <div className="bg-surface border border-outline-variant rounded-xl p-1.5 shadow-2xl backdrop-blur-xl bg-surface/98 flex flex-col gap-1 ring-1 ring-black/10">
                 <button
                   type="button"
-                  onClick={() => onChangeProduksiSubmenu('hasil_produksi')}
+                  onClick={() => {
+                    onChangeProduksiSubmenu('hasil_produksi');
+                    setIsProduksiMenuOpen(false);
+                  }}
                   className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-bold font-label-mono transition-all ${activeTab === 'hasil_produksi' ? 'bg-primary/10 text-primary' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high'}`}
                 >
                   <div className="flex items-center gap-2.5">
@@ -95,7 +131,10 @@ export default function HeaderNav({ activeTab, onChangeTab, onChangeProduksiSubm
 
                 <button
                   type="button"
-                  onClick={() => onChangeProduksiSubmenu('performa_mesin')}
+                  onClick={() => {
+                    onChangeProduksiSubmenu('performa_mesin');
+                    setIsProduksiMenuOpen(false);
+                  }}
                   className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-bold font-label-mono transition-all ${activeTab === 'performa_mesin' ? 'bg-primary/10 text-primary' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high'}`}
                 >
                   <div className="flex items-center gap-2.5">
@@ -114,6 +153,7 @@ export default function HeaderNav({ activeTab, onChangeTab, onChangeProduksiSubm
           <button
             type="button"
             onClick={() => onChangeTab('backorder')}
+            id="header-link-backorder"
             className={`${base} ${
               activeTab === 'backorder'
                 ? 'bg-primary text-on-primary shadow-sm'

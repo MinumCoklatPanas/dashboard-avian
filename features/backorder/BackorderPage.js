@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { backOrderData } from '../../lib/data/backorder';
 
 export default function BackorderPage() {
@@ -8,8 +8,67 @@ export default function BackorderPage() {
   const [line, setLine] = useState('pipa');
   const [velocity, setVelocity] = useState('all');
   const [search, setSearch] = useState('');
+  const [boFiltersExpanded, setBoFiltersExpanded] = useState(false);
+  const [boDashboardOpen, setBoDashboardOpen] = useState(false);
+  const [boRecommendationFocused, setBoRecommendationFocused] = useState(false);
+  const [boOthersExpanded, setBoOthersExpanded] = useState(false);
 
   const [selectedRecommendationId, setSelectedRecommendationId] = useState(null);
+
+  useEffect(() => {
+    const htmlEl = document.documentElement;
+    const bodyEl = document.body;
+
+    if (boDashboardOpen) {
+      htmlEl.classList.add('bo-dashboard-open');
+      bodyEl.classList.add('bo-dashboard-open');
+    } else {
+      htmlEl.classList.remove('bo-dashboard-open');
+      bodyEl.classList.remove('bo-dashboard-open');
+    }
+
+    return () => {
+      htmlEl.classList.remove('bo-dashboard-open');
+      bodyEl.classList.remove('bo-dashboard-open');
+    };
+  }, [boDashboardOpen]);
+
+  const isMobileViewport = () => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(max-width: 767px)').matches;
+  };
+
+  const focusRecommendationSection = () => {
+    if (!isMobileViewport()) return;
+    setBoFiltersExpanded(false);
+    setBoRecommendationFocused(true);
+
+    requestAnimationFrame(() => {
+      document.getElementById('bo-recommendation-card')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    });
+  };
+
+  const handleTopSkuRowClick = (skuId) => {
+    setSelectedRecommendationId(skuId);
+    focusRecommendationSection();
+  };
+
+  const toggleBoOthers = () => {
+    setBoOthersExpanded((prev) => !prev);
+  };
+
+  const handleBackToList = () => {
+    setBoRecommendationFocused(false);
+    requestAnimationFrame(() => {
+      document.getElementById('bo-ranking-card')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    });
+  };
 
   const activeLineData = useMemo(() => {
     return backOrderData
@@ -32,7 +91,12 @@ export default function BackorderPage() {
 
   const totalTon = useMemo(() => activeLineData.reduce((sum, item) => sum + item.boTon, 0), [activeLineData]);
 
-  const top10 = activeLineData.slice(0, 10);
+  const sortedTopRanking = useMemo(() => [...activeLineData].sort((a, b) => b.boTon - a.boTon), [activeLineData]);
+  const top10 = sortedTopRanking.slice(0, 10);
+
+  const rankingTopItems = useMemo(() => sortedTopRanking.slice(0, 10), [sortedTopRanking]);
+  const rankingOthersItems = useMemo(() => sortedTopRanking.slice(10), [sortedTopRanking]);
+  const rankingExpandedItems = useMemo(() => (boOthersExpanded ? sortedTopRanking.slice(10) : []), [boOthersExpanded, sortedTopRanking]);
 
   const detailGroups = useMemo(() => {
     const bySearchAndVelocity = activeLineData
@@ -72,25 +136,21 @@ export default function BackorderPage() {
   const detailCount = useMemo(() => detailGroups.reduce((sum, g) => sum + g.items.length, 0), [detailGroups]);
 
   const selectedSku = useMemo(() => {
-    if (!top10.length) return null;
-    return top10.find((item) => item.id === selectedRecommendationId) || top10[0];
-  }, [top10, selectedRecommendationId]);
+    if (!sortedTopRanking.length) return null;
+    return sortedTopRanking.find((item) => item.id === selectedRecommendationId) || sortedTopRanking[0];
+  }, [sortedTopRanking, selectedRecommendationId]);
 
   const volumeCards = useMemo(() => {
     const sum = (rows) => rows.reduce((acc, row) => acc + row.boTon, 0);
-    const avgHk = (rows) => {
-      if (!rows.length) return 0;
-      return rows.reduce((acc, row) => acc + row.boTon / row.rateTon, 0) / rows.length;
-    };
 
     if (line === 'pipa') {
       const power = activeLineData.filter((item) => item.category === 'POWER');
       const powerMax = activeLineData.filter((item) => item.category === 'POWER MAX');
       const quad = activeLineData.filter((item) => item.category === 'QUAD');
       return [
-        { title: 'Power', icon: 'power', color: 'primary', value: sum(power), hk: avgHk(power) },
-        { title: 'Power Max', icon: 'bolt', color: 'secondary', value: sum(powerMax), hk: avgHk(powerMax) },
-        { title: 'Quad', icon: 'view_in_ar', color: 'tertiary', value: sum(quad), hk: avgHk(quad) },
+        { title: 'Power', icon: 'power', value: sum(power) },
+        { title: 'Power Max', icon: 'bolt', value: sum(powerMax) },
+        { title: 'Quad', icon: 'view_in_ar', value: sum(quad) },
       ];
     }
 
@@ -98,13 +158,13 @@ export default function BackorderPage() {
       const power = activeLineData.filter((item) => !item.desc.toLowerCase().includes('quad'));
       const quad = activeLineData.filter((item) => item.desc.toLowerCase().includes('quad'));
       return [
-        { title: 'Merk Power', icon: 'power', color: 'primary', value: sum(power), hk: avgHk(power) },
-        { title: 'Merk Quad', icon: 'view_in_ar', color: 'tertiary', value: sum(quad), hk: avgHk(quad) },
+        { title: 'Power', icon: 'power', value: sum(power) },
+        { title: 'Quad', icon: 'view_in_ar', value: sum(quad) },
       ];
     }
 
     return [
-      { title: 'Lini Selang', icon: 'water', color: 'cyan', value: sum(activeLineData), hk: avgHk(activeLineData) },
+      { title: 'Selang', icon: 'water', value: sum(activeLineData) },
     ];
   }, [activeLineData, line]);
 
@@ -140,26 +200,51 @@ export default function BackorderPage() {
     });
   }, [selectedSku, line]);
 
+  useEffect(() => {
+    setBoOthersExpanded(false);
+  }, [plant, line, velocity, search]);
+
   return (
-    <section id="panel-backorder" className="panel-transition space-y-gutter-lg">
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-4 pb-3 border-b border-outline-variant/40">
-        <div className="flex items-center gap-3">
-          <span className="material-symbols-outlined text-3xl text-amber-500 bg-amber-500/10 p-2.5 rounded-2xl border border-amber-500/20">pending_actions</span>
-          <h2 className="font-headline-lg text-2xl lg:text-3xl font-black text-on-surface">Manajemen Back Order (BO) Pabrik</h2>
+    <section id="panel-backorder" className={`panel-transition space-y-gutter-lg ${boRecommendationFocused ? 'bo-recommendation-focused' : ''}`}>
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 pb-3 border-b border-outline-variant/40">
+        <div>
+          <div className="flex items-center gap-3">
+            <div className="text-sky-600 bg-sky-500/10 w-11 h-11 rounded-xl border border-sky-500/20 shrink-0 relative">
+              <span className="material-symbols-outlined absolute inset-0 m-auto w-fit h-fit text-2xl leading-none">pending_actions</span>
+            </div>
+            <div>
+              <h2 className="font-headline-lg text-2xl lg:text-3xl font-black text-on-surface">Manajemen Back Order (BO) Pabrik</h2>
+            </div>
+          </div>
         </div>
-        <div className="bg-surface-container-high border border-outline-variant rounded-xl px-3.5 py-2 flex items-center gap-2">
-          <span className="material-symbols-outlined text-primary text-sm">calendar_month</span>
-          <span className="font-label-mono text-on-surface-variant text-[11px] uppercase">Periode:</span>
-          <span className="font-label-mono text-on-surface font-bold text-xs lg:text-sm">Agustus 2026</span>
+        <div className="flex flex-wrap items-center gap-2.5 select-none lg:self-center">
+          <div className="bg-surface-container-high border border-outline-variant rounded-xl px-3 py-2 flex items-center gap-2">
+            <span className="material-symbols-outlined text-primary text-[13px]">calendar_month</span>
+            <span className="font-label-mono text-on-surface-variant text-[10px] uppercase">Periode:</span>
+            <span className="font-label-mono text-on-surface font-bold text-xs">Agustus 2026</span>
+          </div>
         </div>
       </div>
 
-      <div className="bg-surface-container border border-outline-variant p-5 lg:p-6 rounded-2xl shadow-sm space-y-4">
-        <div className="flex flex-col space-y-1.5">
-          <span className="text-[10px] text-on-surface-variant font-bold uppercase tracking-wider font-label-mono">Pilih Pabrik:</span>
-          <div className="w-full sm:w-fit overflow-x-auto custom-scrollbar">
-            <div className="inline-flex bg-surface-container-high p-1 rounded-xl border border-outline-variant/60 min-w-max">
-            {['Wotan', 'Cirebon', 'all'].map((p) => (
+      <div className={`bo-filter-panel bg-surface-container border border-outline-variant rounded-2xl shadow-sm ${boFiltersExpanded ? 'bo-filters-expanded' : ''}`}>
+        <button
+          id="bo-filter-toggle"
+          type="button"
+          aria-controls="bo-filter-options"
+          aria-expanded={boFiltersExpanded}
+          className="hidden"
+          onClick={() => setBoFiltersExpanded((prev) => !prev)}
+        >
+          <span id="bo-filter-toggle-icon" className="material-symbols-outlined text-sm">tune</span>
+          <span id="bo-filter-toggle-label">Filter BO</span>
+        </button>
+
+        <div id="bo-filter-options">
+          <div className="flex flex-wrap items-end gap-4 lg:gap-6">
+            <div className="flex flex-col space-y-1.5">
+              <span className="text-[10px] text-on-surface-variant uppercase tracking-wider font-label-mono block font-black">Pilih Pabrik:</span>
+              <div className="flex flex-wrap bg-surface-container-high p-1 rounded-xl border border-outline-variant/60 w-fit">
+                {['all', 'Wotan', 'Cirebon'].map((p) => (
               <button
                 key={p}
                 onClick={() => {
@@ -167,27 +252,21 @@ export default function BackorderPage() {
                   if (line === 'selang' && p !== 'Cirebon') setLine('pipa');
                   setSelectedRecommendationId(null);
                 }}
-                className={`shrink-0 flex items-center gap-2.5 px-4 py-2 rounded-lg text-xs font-bold font-label-mono transition-all duration-200 ${
+                id={`btn-bo-plant-${String(p).toLowerCase()}-tab`}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-black font-label-mono transition-all duration-200 active:scale-95 ${
                   plant === p ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest'
                 }`}
               >
-                <span className="material-symbols-outlined text-sm">{p === 'all' ? 'domain' : 'factory'}</span>
-                {p === 'all' ? 'Semua Pabrik' : `AAIP ${p}`}
+                <span className="material-symbols-outlined text-[13px]">{p === 'all' ? 'domain' : 'factory'}</span>
+                {p === 'all' ? 'All' : p === 'Wotan' ? 'IPW' : 'IPC'}
               </button>
             ))}
+              </div>
             </div>
-          </div>
-        </div>
 
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col justify-center gap-1 bg-surface-container-high/60 border border-outline-variant/40 px-5 py-4 rounded-2xl shadow-inner min-h-28">
-            <span className="text-xs text-on-surface-variant font-bold uppercase tracking-wider font-label-mono">Total Back Order</span>
-            <span className="text-4xl lg:text-5xl font-black font-mono text-red-600 tracking-tight">{totalTon.toFixed(2)} Ton</span>
-          </div>
-
-          <div className="flex flex-col gap-1.5 min-w-0">
-            <span className="text-[10px] text-on-surface-variant font-bold uppercase tracking-wider font-label-mono">Pilih Lini Produk:</span>
-            <div className="flex flex-wrap items-stretch gap-1 bg-surface-container-high p-1 rounded-xl border border-outline-variant/60 w-full min-h-16">
+            <div className="flex flex-col gap-1.5 min-w-0">
+              <span className="text-[10px] text-on-surface-variant font-bold uppercase tracking-wider font-label-mono">Pilih Lini Produk:</span>
+              <div id="bo-line-tabs-container" className="flex flex-wrap items-center gap-1 bg-surface-container-high p-1 rounded-xl border border-outline-variant/60 w-fit">
               {lineOptions.map((l) => (
                 <button
                   key={l}
@@ -203,121 +282,267 @@ export default function BackorderPage() {
                   {l.charAt(0).toUpperCase() + l.slice(1)}
                 </button>
               ))}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5 min-w-0">
+              <span className="text-[10px] text-on-surface-variant font-bold uppercase tracking-wider font-label-mono">Tipe SKU:</span>
+              <div id="bo-velocity-tabs-container" className="flex flex-wrap items-center gap-1 bg-surface-container-high p-1 rounded-xl border border-outline-variant/60 w-fit">
+                {[
+                  { id: 'all', label: 'Semua' },
+                  { id: '01_Fast', label: 'Fast' },
+                  { id: '02_Moderate', label: 'Moderate' },
+                  { id: '03_Slow', label: 'Slow' },
+                ].map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => setVelocity(option.id)}
+                    className={`px-3 py-1.5 rounded-lg text-[11px] font-black font-label-mono transition-all ${
+                      velocity === option.id ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5 min-w-0">
+              <span className="text-[10px] text-on-surface-variant font-bold uppercase tracking-wider font-label-mono">Family Produk:</span>
+              <div id="bo-family-tabs-container" className="flex flex-wrap items-center gap-1 bg-surface-container-high p-1 rounded-xl border border-outline-variant/60 w-fit">
+                {detailGroups.map((group) => (
+                  <span key={group.name} className="px-3 py-1.5 rounded-lg text-[11px] font-black font-label-mono text-on-surface-variant bg-surface-container-highest">
+                    {group.name}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
         </div>
+
+        <div id="bo-dashboard-picker">
+          <button
+            id="bo-dashboard-trigger"
+            type="button"
+            aria-controls="bo-dashboard-overlay"
+            aria-expanded={boDashboardOpen}
+            onClick={() => setBoDashboardOpen(true)}
+          >
+            <span className="material-symbols-outlined text-sm">layers</span>
+            <span id="bo-dashboard-trigger-desktop">Operasional BO: BO Summary</span>
+            <span id="bo-dashboard-trigger-mobile">Dashboard BO</span>
+            <span className="material-symbols-outlined text-sm">expand_more</span>
+          </button>
+        </div>
       </div>
 
-      <div className={`grid grid-cols-1 ${volumeCards.length === 1 ? 'md:grid-cols-1 max-w-xl mx-auto' : volumeCards.length === 2 ? 'md:grid-cols-2' : 'md:grid-cols-3'} gap-card-gap`}>
+      <div
+        id="bo-dashboard-overlay"
+        aria-hidden={!boDashboardOpen}
+        className={boDashboardOpen ? 'is-open' : ''}
+        onClick={() => setBoDashboardOpen(false)}
+      >
+        <div id="bo-dashboard-menu" role="dialog" aria-label="Pilih dashboard Back Order" onClick={(event) => event.stopPropagation()}>
+          <div id="bo-dashboard-menu-header" className="px-2 py-2 border-b border-outline-variant/50">
+            <span className="text-xs font-black text-on-surface uppercase">Operasional Back Order</span>
+            <button
+              id="bo-dashboard-sheet-close"
+              type="button"
+              aria-label="Tutup pilihan dashboard"
+              className="material-symbols-outlined text-on-surface-variant"
+              onClick={() => setBoDashboardOpen(false)}
+            >
+              close
+            </button>
+          </div>
+          <button type="button" className="bo-dashboard-option flex items-center justify-between rounded-lg bg-[#e2f2f4] text-[#2b6d7a] px-3 py-3 mt-2 text-xs font-black" onClick={() => setBoDashboardOpen(false)}>
+            <span>1 &nbsp; BO Summary</span>
+            <span className="material-symbols-outlined text-sm">check</span>
+          </button>
+          <button type="button" disabled className="bo-dashboard-option flex items-center justify-between rounded-lg px-3 py-3 text-xs font-bold text-on-surface-variant opacity-50 cursor-not-allowed">
+            <span>2 &nbsp; Others</span>
+            <span className="text-[10px]">Segera hadir</span>
+          </button>
+        </div>
+      </div>
+
+      <div
+        id="bo-active-cards-grid"
+        className={`grid grid-cols-1 ${line === 'pipa' ? 'sm:grid-cols-2 xl:grid-cols-4' : line === 'fitting' ? 'sm:grid-cols-2 xl:grid-cols-3 w-full' : 'w-full'} gap-card-gap`}
+      >
+        <article className="bg-surface-container border-2 border-slate-500/30 p-5 rounded-2xl shadow-sm flex flex-col justify-between">
+          <div className="flex items-center gap-1.5 pb-3 border-b border-outline-variant/60 text-xs font-black text-slate-600 uppercase font-label-mono">
+            <span className="material-symbols-outlined text-base">pending_actions</span>
+            Total Back Order
+          </div>
+          <div className="mt-4">
+            <span className="text-[10px] text-on-surface-variant font-bold uppercase tracking-wider block mb-1">Volume Back Order:</span>
+            <h4 id="bo-total-overview-val" className="text-2xl lg:text-3xl font-black font-mono text-on-surface tracking-tight">{totalTon.toFixed(2)} Ton</h4>
+          </div>
+        </article>
+
         {volumeCards.map((card) => {
-          const palette =
-            card.color === 'primary'
-              ? {
-                  border: 'border-primary/20 hover:border-primary',
-                  text: 'text-primary',
-                  bg: 'bg-primary/10',
-                }
-              : card.color === 'secondary'
-                ? {
-                    border: 'border-secondary/20 hover:border-secondary',
-                    text: 'text-secondary',
-                    bg: 'bg-secondary/10',
-                  }
-                : card.color === 'tertiary'
-                  ? {
-                      border: 'border-tertiary/20 hover:border-tertiary',
-                      text: 'text-tertiary',
-                      bg: 'bg-tertiary/10',
-                    }
-                  : {
-                      border: 'border-cyan-500/20 hover:border-cyan-500',
-                      text: 'text-cyan-600',
-                      bg: 'bg-cyan-500/10',
-                    };
-
-          const hkClass =
-            card.hk > 7
-              ? 'bg-red-500/15 text-red-600 border-red-500/30'
-              : card.hk >= 3
-                ? 'bg-amber-500/15 text-amber-600 border-amber-500/30'
-                : 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30';
-
           return (
-            <article key={card.title} className={`bg-surface-container border-2 ${palette.border} p-5 rounded-2xl shadow-sm transition-all duration-300 hover:scale-[1.02]`}>
-              <div className="flex items-center justify-between pb-2.5 border-b border-outline-variant/40">
-                <div className="flex items-center gap-2.5">
-                  <span className={`p-2 rounded-xl ${palette.bg} ${palette.text} material-symbols-outlined text-xl`}>{card.icon}</span>
-                  <span className={`text-sm lg:text-base font-black uppercase font-label-mono tracking-wider ${palette.text}`}>{card.title}</span>
-                </div>
+            <article key={card.title} className="bg-surface-container border-2 border-slate-500/30 p-5 rounded-2xl shadow-sm transition-all duration-300 hover:scale-[1.02] flex flex-col justify-between">
+              <div className="flex items-center justify-between pb-3 border-b border-outline-variant/60">
+                <span className="text-xs font-black text-slate-600 uppercase font-label-mono flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-base">{card.icon}</span>
+                  {card.title}
+                </span>
               </div>
-              <div className="mt-3.5">
-                <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider block">Volume Back Order:</span>
-                <h4 className="text-2xl lg:text-3xl font-black font-mono text-on-surface mt-1 tracking-tight">{card.value.toFixed(2)} Ton</h4>
-              </div>
-              <div className="mt-4 pt-3 border-t border-outline-variant/40 flex items-center justify-between">
-                <span className="text-xs lg:text-sm font-bold text-on-surface-variant">Estimasi HK BO:</span>
-                <span className={`font-mono text-sm lg:text-base font-black px-3 py-1 rounded-xl border ${hkClass}`}>{card.hk.toFixed(1)} Hari</span>
+              <div className="mt-4">
+                <span className="text-[10px] text-on-surface-variant font-bold uppercase tracking-wider block mb-1">Volume Back Order:</span>
+                <h4 className="text-2xl lg:text-3xl font-black font-mono text-on-surface tracking-tight">{card.value.toFixed(2)} Ton</h4>
               </div>
             </article>
           );
         })}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-card-gap">
-        <div className="bg-surface-container border border-outline-variant p-6 rounded-2xl shadow-sm flex flex-col space-y-4">
-          <div className="flex items-center gap-2.5 pb-3 border-b border-outline-variant/60">
-            <span className="material-symbols-outlined text-red-600 text-xl font-black bg-red-500/10 p-2 rounded-xl">format_list_numbered</span>
-            <h4 className="font-black text-sm lg:text-base text-on-surface uppercase tracking-wide">Top 10 Back Order SKU</h4>
+      <div className="grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] gap-card-gap">
+        <div id="bo-ranking-card" className="bg-surface-container border border-outline-variant p-4 rounded-2xl shadow-sm flex flex-col space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-3 border-b border-outline-variant/60 gap-3">
+            <div className="flex items-center gap-2.5">
+              <span className="material-symbols-outlined text-red-600 text-lg font-black bg-red-500/10 p-1.5 rounded-lg">format_list_numbered</span>
+              <h4 className="font-black text-sm lg:text-base text-on-surface uppercase tracking-wide">Top Back Order SKU</h4>
+            </div>
+            <span id="bo-ranking-today" className="self-end sm:self-auto text-[10px] font-semibold text-on-surface-variant font-label-mono">7 Agustus 2026</span>
           </div>
           <div className="overflow-x-auto custom-scrollbar">
-            <table className="w-full text-left text-xs lg:text-sm font-semibold min-w-[560px]">
+            <table className="w-full text-left text-xs font-semibold min-w-0">
               <thead>
-                <tr className="text-on-surface-variant font-label-mono uppercase border-b border-outline-variant/40 text-[10px] tracking-wider">
-                  <th className="pb-2 w-8 text-center">Rank</th>
+                <tr className="text-primary font-label-mono font-black uppercase border-b border-outline-variant/40 text-[10px] tracking-wider">
+                  <th className="pb-2 w-8 text-center" aria-label="Urutan"></th>
                   <th className="pb-2">SKU / Produk</th>
-                  <th className="pb-2 text-right">Volume BO (Ton)</th>
-                  <th className="pb-2 text-center">HK BO</th>
-                  <th className="pb-2 text-center">Status SKU</th>
+                  <th className="pb-2 text-center"><span className="block">Family Produk /</span><span className="block">Status SKU /</span><span className="block">Lokasi</span></th>
+                  <th className="pb-2 text-right"><span className="block">Total BO</span><span className="block">(Ton)</span></th>
+                  <th className="pb-2 text-right"><span className="block">Sisa BO</span><span className="block">(Ton)</span><span className="block">per 16</span></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-outline-variant/30 font-medium">
-                {top10.map((item, idx) => {
-                  const hk = item.boTon / item.rateTon;
-                  const velClass =
-                    item.velocity === '01_Fast'
-                      ? 'bg-blue-500/10 text-blue-600 border-blue-500/20'
-                      : item.velocity === '02_Moderate'
-                        ? 'bg-purple-500/10 text-purple-600 border-purple-500/20'
-                        : 'bg-slate-500/10 text-slate-600 border-slate-500/20';
-
-                  const rankClass =
-                    idx === 0
-                      ? 'bg-red-500 text-white'
-                      : idx === 1
-                        ? 'bg-amber-500 text-white'
-                        : idx === 2
-                          ? 'bg-blue-500 text-white'
-                          : 'bg-surface-container-highest text-on-surface-variant';
+              <tbody id="bo-top10-tbody" className="divide-y divide-outline-variant/30 font-medium">
+                {rankingTopItems.map((item, idx) => {
+                  const effectiveHk = item.rateTon > 0 ? item.boTon / item.rateTon : 0;
+                  const remainingTon = Math.max(item.boTon - (item.rateTon * 7), 0);
+                  const velocityLabel = item.velocity === '01_Fast' ? 'Fast' : item.velocity === '02_Moderate' ? 'Mod' : 'Slow';
 
                   return (
                     <tr
                       key={item.id}
-                      onClick={() => setSelectedRecommendationId(item.id)}
+                      onClick={() => handleTopSkuRowClick(item.id)}
+                      aria-current={selectedSku?.id === item.id ? 'true' : undefined}
                       className={`hover:bg-surface-container-high/40 transition-colors cursor-pointer ${selectedSku?.id === item.id ? 'bg-primary/10' : ''}`}
                     >
-                      <td className="py-2.5 text-center">
-                        <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-black font-mono ${rankClass}`}>{idx + 1}</span>
+                      <td className="py-3 text-center font-mono font-black text-primary">
+                        {idx < 10 ? idx + 1 : '↳'}
                       </td>
-                      <td className="py-2.5">
-                        <div className="font-bold text-on-surface">{item.desc}</div>
-                        <div className="text-[10px] text-on-surface-variant font-label-mono uppercase">{item.category} ({item.plant})</div>
+                      <td className="py-3">
+                        <div className="flex flex-col">
+                          <span className="font-extrabold text-on-surface text-sm lg:text-base leading-tight">{item.desc}</span>
+                        </div>
                       </td>
-                      <td className="py-2.5 text-right font-mono font-black text-red-600">{item.boTon.toFixed(2)}</td>
-                      <td className="py-2.5 text-center font-mono">{hk.toFixed(1)} HK</td>
-                      <td className="py-2.5 text-center">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded border text-[11px] font-black uppercase font-mono ${velClass}`}>
-                          {item.velocity === '01_Fast' ? 'Fast' : item.velocity === '02_Moderate' ? 'Mod' : 'Low'}
-                        </span>
+                      <td className="py-3 text-center text-on-surface-variant">
+                        <div className="bo-family-status-location">
+                          <div>
+                            <span className="bo-mobile-label">Family Produk</span>
+                            <span className="bo-mobile-value">{item.category}</span>
+                          </div>
+                          <div>
+                            <span className="bo-mobile-label">Status SKU</span>
+                            <span className="bo-mobile-value">{velocityLabel}</span>
+                          </div>
+                          <div>
+                            <span className="bo-mobile-label">Lokasi</span>
+                            <span className="bo-mobile-value">{item.plant}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3 text-right font-mono text-on-surface text-sm lg:text-base" data-mobile-label="Total BO (Ton)">
+                        <div className="flex flex-col items-end">
+                          <span className="bo-total-value font-black text-red-600">{item.boTon.toFixed(2)}</span>
+                          <span className="text-[10px] font-bold text-on-surface-variant">({effectiveHk.toFixed(1)} HK)</span>
+                        </div>
+                      </td>
+                      <td className="py-3 text-right font-mono font-black text-sm text-on-surface" data-mobile-label="Sisa BO (Ton) per 16" title="Sisa BO setelah simulasi produksi hingga 7 Agustus 2026">
+                        {remainingTon.toFixed(2)}
+                      </td>
+                    </tr>
+                  );
+                })}
+
+                {rankingOthersItems.length > 0 ? (
+                  <tr
+                    role="button"
+                    tabIndex={0}
+                    aria-expanded={boOthersExpanded}
+                    onClick={toggleBoOthers}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        toggleBoOthers();
+                      }
+                    }}
+                    className="bg-surface-container-high/60 border-b border-outline-variant/30 cursor-pointer hover:bg-primary/10"
+                  >
+                    <td className="py-3 text-center font-mono font-black text-primary">11</td>
+                    <td className="py-3 font-black text-on-surface">
+                      Others <span className="text-xs font-semibold text-on-surface-variant">({rankingOthersItems.length} SKU) {boOthersExpanded ? 'Tutup' : 'Semua'}</span>
+                    </td>
+                    <td className="py-3 text-center text-on-surface-variant"><span className="bo-mobile-value">Campuran</span></td>
+                    <td className="py-3 text-right font-mono text-on-surface" data-mobile-label="Total BO (Ton)">
+                      <div className="flex flex-col items-end">
+                        <span className="bo-total-value font-black text-red-600">{rankingOthersItems.reduce((sum, row) => sum + row.boTon, 0).toFixed(2)}</span>
+                        <span className="text-[10px] font-bold text-on-surface-variant">(—)</span>
+                      </div>
+                    </td>
+                    <td className="py-3 text-right font-mono font-black text-on-surface" data-mobile-label="Sisa BO (Ton) per 16" title="Sisa BO setelah simulasi produksi hingga 7 Agustus 2026">
+                      {rankingOthersItems.reduce((sum, row) => sum + Math.max(row.boTon - (row.rateTon * 7), 0), 0).toFixed(2)}
+                    </td>
+                  </tr>
+                ) : null}
+
+                {rankingExpandedItems.map((item) => {
+                  const effectiveHk = item.rateTon > 0 ? item.boTon / item.rateTon : 0;
+                  const remainingTon = Math.max(item.boTon - (item.rateTon * 7), 0);
+                  const velocityLabel = item.velocity === '01_Fast' ? 'Fast' : item.velocity === '02_Moderate' ? 'Mod' : 'Slow';
+
+                  return (
+                    <tr
+                      key={`others-${item.id}`}
+                      onClick={() => handleTopSkuRowClick(item.id)}
+                      aria-current={selectedSku?.id === item.id ? 'true' : undefined}
+                      className={`hover:bg-surface-container-high/40 transition-colors cursor-pointer ${selectedSku?.id === item.id ? 'bg-primary/10' : ''}`}
+                    >
+                      <td className="py-3 text-center font-mono font-black text-primary">↳</td>
+                      <td className="py-3">
+                        <div className="flex flex-col">
+                          <span className="font-extrabold text-on-surface text-sm lg:text-base leading-tight">{item.desc}</span>
+                        </div>
+                      </td>
+                      <td className="py-3 text-center text-on-surface-variant">
+                        <div className="bo-family-status-location">
+                          <div>
+                            <span className="bo-mobile-label">Family Produk</span>
+                            <span className="bo-mobile-value">{item.category}</span>
+                          </div>
+                          <div>
+                            <span className="bo-mobile-label">Status SKU</span>
+                            <span className="bo-mobile-value">{velocityLabel}</span>
+                          </div>
+                          <div>
+                            <span className="bo-mobile-label">Lokasi</span>
+                            <span className="bo-mobile-value">{item.plant}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3 text-right font-mono text-on-surface text-sm lg:text-base" data-mobile-label="Total BO (Ton)">
+                        <div className="flex flex-col items-end">
+                          <span className="bo-total-value font-black text-red-600">{item.boTon.toFixed(2)}</span>
+                          <span className="text-[10px] font-bold text-on-surface-variant">({effectiveHk.toFixed(1)} HK)</span>
+                        </div>
+                      </td>
+                      <td className="py-3 text-right font-mono font-black text-sm text-on-surface" data-mobile-label="Sisa BO (Ton) per 16" title="Sisa BO setelah simulasi produksi hingga 7 Agustus 2026">
+                        {remainingTon.toFixed(2)}
                       </td>
                     </tr>
                   );
@@ -327,17 +552,31 @@ export default function BackorderPage() {
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-emerald-500/5 via-surface-container to-surface-container border border-outline-variant p-6 rounded-2xl shadow-sm flex flex-col space-y-4">
+        <div id="bo-recommendation-card" className="bg-gradient-to-br from-emerald-500/5 via-surface-container to-surface-container border border-outline-variant rounded-2xl shadow-sm flex flex-col">
           <div className="flex items-center justify-between pb-3 border-b border-outline-variant/60">
-            <h4 className="font-black text-sm lg:text-base text-emerald-600 uppercase tracking-wide">Rekomendasi Pemenuhan & Alokasi Mesin</h4>
+            <div className="flex items-center gap-2.5">
+              <span className="material-symbols-outlined text-emerald-600 text-xl font-black bg-emerald-500/10 p-2 rounded-xl">verified</span>
+              <h4 className="font-black text-sm lg:text-base text-on-surface uppercase tracking-wide">Rekomendasi Pemenuhan &amp; Alokasi Mesin</h4>
+            </div>
             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 uppercase font-mono">Auto Allocator</span>
           </div>
+
+          <button
+            id="bo-back-to-list-button"
+            className={boRecommendationFocused ? 'is-floating-visible' : ''}
+            type="button"
+            onClick={handleBackToList}
+          >
+            <span className="material-symbols-outlined text-sm">arrow_upward</span>
+            Kembali ke daftar SKU
+          </button>
+
           {!selectedSku ? (
-            <div className="bg-surface-container-high border border-outline-variant rounded-xl p-4 text-sm text-on-surface-variant">
+            <div id="bo-recomm-container" className="bg-surface-container-high border border-outline-variant rounded-xl p-4 text-sm text-on-surface-variant">
               Tidak ada data Back Order.
             </div>
           ) : (
-            <div className="space-y-4 text-sm">
+            <div id="bo-recomm-container" className="space-y-4 text-sm">
               <div className="bg-surface-container-high/40 p-4 rounded-xl border border-outline-variant/40">
                 <span className="text-[11px] text-on-surface-variant font-bold uppercase tracking-wider font-label-mono block">SKU Prioritas Utama</span>
                 <h5 className="text-base font-black text-on-surface mt-1">{selectedSku.desc}</h5>
@@ -402,9 +641,9 @@ export default function BackorderPage() {
                           };
 
                   return (
-                    <div key={opt.id} className={`p-4 rounded-xl ${statusMeta.card}`}>
+                    <div key={opt.id} className={`bo-machine-option p-4 rounded-xl ${statusMeta.card}`}>
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-1.5">
-                        <span className="font-extrabold text-sm text-on-surface">{opt.machine}</span>
+                        <span className="bo-machine-name font-extrabold text-sm text-on-surface">{opt.machine}</span>
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span className={`px-2.5 py-0.5 rounded text-[10px] font-black uppercase font-mono border ${statusMeta.badge}`}>{statusMeta.label}</span>
                           {idx === 0 ? (
@@ -412,9 +651,9 @@ export default function BackorderPage() {
                           ) : null}
                         </div>
                       </div>
-                      <p className="text-xs text-on-surface-variant">Standar Output: <strong className="text-on-surface font-mono">{opt.standardOutput.toFixed(2)} Ton/hari</strong></p>
-                      <p className="text-xs text-on-surface-variant">Item Berjalan: <strong className="text-on-surface">{opt.runningItem}</strong></p>
-                      <p className="text-xs text-on-surface-variant">Performance: <strong className="text-on-surface font-mono">{opt.performance.toFixed(1)}%</strong> • Ratio Stock: <strong className="text-emerald-600 font-mono">{opt.stockRatio.toFixed(2)}</strong></p>
+                      <p className="bo-machine-detail text-xs text-on-surface-variant">Standar Output: <strong className="text-on-surface font-mono">{opt.standardOutput.toFixed(2)} Ton/hari</strong></p>
+                      <p className="bo-machine-detail text-xs text-on-surface-variant">Item Berjalan: <strong className="text-on-surface">{opt.runningItem}</strong></p>
+                      <p className="bo-machine-detail text-xs text-on-surface-variant">Performance: <strong className="text-on-surface font-mono">{opt.performance.toFixed(1)}%</strong> • Ratio Stock: <strong className="text-emerald-600 font-mono">{opt.stockRatio.toFixed(2)}</strong></p>
                     </div>
                   );
                 })}
