@@ -109,7 +109,7 @@ export async function GET(request) {
         requestId,
         timestamp: new Date().toISOString(),
         upstreamStatus: classification.upstreamStatus,
-        error: isProd ? 'Internal server error' : errorText,
+        error: errorText,
       },
       {
         status: classification.status,
