@@ -1,7 +1,43 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { backOrderData } from '../../lib/data/backorder';
+
+function formatCategoryLabel(category) {
+  const value = String(category || '').trim();
+  if (!value) return 'Uncategorized';
+  return value
+    .toLowerCase()
+    .split(' ')
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+function iconByCategory(category) {
+  const normalized = String(category || '').trim().toUpperCase();
+  if (normalized === 'POWER') return 'power';
+  if (normalized === 'POWER MAX') return 'bolt';
+  if (normalized === 'QUAD') return 'view_in_ar';
+  if (normalized === 'SELANG') return 'water';
+  return 'category';
+}
+
+function themeByIndex(index) {
+  const themes = ['blue', 'amber', 'purple', 'cyan', 'indigo'];
+  return themes[index % themes.length];
+}
+
+function plantQueryValue(plant) {
+  if (plant === 'Wotan') return 'wotan';
+  if (plant === 'Cirebon') return 'cirebon';
+  return 'all';
+}
+
+function getNumericSeed(value) {
+  return String(value || '')
+    .split('')
+    .reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+}
 
 export default function BackorderPage() {
   const [plant, setPlant] = useState('Wotan');
@@ -12,6 +48,9 @@ export default function BackorderPage() {
   const [boDashboardOpen, setBoDashboardOpen] = useState(false);
   const [boRecommendationFocused, setBoRecommendationFocused] = useState(false);
   const [boOthersExpanded, setBoOthersExpanded] = useState(false);
+  const [backOrderRows, setBackOrderRows] = useState([]);
+  const [isLoadingData, setIsLoadingData] = useState(false);
+  const [backOrderError, setBackOrderError] = useState('');
 
   const [selectedRecommendationId, setSelectedRecommendationId] = useState(null);
 
@@ -70,68 +109,114 @@ export default function BackorderPage() {
     });
   };
 
-  const activeLineData = useMemo(() => {
-    return backOrderData
-      .filter((item) => (plant === 'all' ? true : item.plant === plant))
-      .filter((item) => item.line === line)
-      .sort((a, b) => b.boTon - a.boTon);
-  }, [plant, line]);
+  useEffect(() => {
+    let isCancelled = false;
 
-  const filtered = useMemo(() => {
-    return activeLineData
-      .filter((item) => (velocity === 'all' ? true : item.velocity === velocity))
-      .filter((item) => item.desc.toLowerCase().includes(search.toLowerCase()))
-      .sort((a, b) => b.boTon - a.boTon);
-  }, [activeLineData, velocity, search]);
+    async function loadBackOrderData() {
+      setIsLoadingData(true);
+      setBackOrderError('');
 
-  const lineOptions = useMemo(() => {
-    if (plant === 'Cirebon') return ['pipa', 'fitting', 'selang'];
-    return ['pipa', 'fitting'];
+      try {
+        const plantValue = plantQueryValue(plant);
+        const response = await fetch(`/api/backorder?plant=${plantValue}`, {
+          method: 'GET',
+          cache: 'no-store',
+        });
+
+        const payload = await response.json();
+
+        if (!response.ok) {
+          const message = payload?.message || payload?.error || 'Failed to load Back Order data.';
+          throw new Error(message);
+        }
+
+        if (!isCancelled) {
+          setBackOrderRows(Array.isArray(payload?.items) ? payload.items : []);
+          setSelectedRecommendationId(null);
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          setBackOrderRows([]);
+          setBackOrderError(error instanceof Error ? error.message : 'Failed to load Back Order data.');
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsLoadingData(false);
+        }
+      }
+    }
+
+    loadBackOrderData();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [plant]);
 
-  const totalTon = useMemo(() => activeLineData.reduce((sum, item) => sum + item.boTon, 0), [activeLineData]);
+  const lineOptions = useMemo(() => {
+    const order = ['pipa', 'fitting', 'selang'];
+    const dynamicLines = Array.from(new Set(backOrderRows.map((item) => item.line))).filter(Boolean);
+    dynamicLines.sort((a, b) => {
+      const aIndex = order.indexOf(a);
+      const bIndex = order.indexOf(b);
+      if (aIndex === -1 && bIndex === -1) return a.localeCompare(b);
+      if (aIndex === -1) return 1;
+      if (bIndex === -1) return -1;
+      return aIndex - bIndex;
+    });
 
-  const sortedTopRanking = useMemo(() => [...activeLineData].sort((a, b) => b.boTon - a.boTon), [activeLineData]);
-  const top10 = sortedTopRanking.slice(0, 10);
+    return dynamicLines.length ? dynamicLines : ['pipa'];
+  }, [backOrderRows]);
 
+  useEffect(() => {
+    if (!lineOptions.includes(line)) {
+      setLine(lineOptions[0]);
+    }
+  }, [lineOptions, line]);
+
+  const activeLineData = useMemo(() => {
+    return backOrderRows
+      .filter((item) => item.line === line)
+      .sort((a, b) => b.boTon - a.boTon);
+  }, [backOrderRows, line]);
+
+  const velocityFilteredLineData = useMemo(() => {
+    return activeLineData
+      .filter((item) => (velocity === 'all' ? true : item.velocity === velocity))
+      .sort((a, b) => b.boTon - a.boTon);
+  }, [activeLineData, velocity]);
+
+  const velocityOptions = useMemo(() => {
+    const unique = Array.from(new Set(activeLineData.map((item) => item.velocity).filter(Boolean)));
+    return ['all', ...unique];
+  }, [activeLineData]);
+
+  const totalTon = useMemo(() => velocityFilteredLineData.reduce((sum, item) => sum + item.boTon, 0), [velocityFilteredLineData]);
+
+  const sortedTopRanking = useMemo(() => [...velocityFilteredLineData].sort((a, b) => b.boTon - a.boTon), [velocityFilteredLineData]);
   const rankingTopItems = useMemo(() => sortedTopRanking.slice(0, 10), [sortedTopRanking]);
   const rankingOthersItems = useMemo(() => sortedTopRanking.slice(10), [sortedTopRanking]);
   const rankingExpandedItems = useMemo(() => (boOthersExpanded ? sortedTopRanking.slice(10) : []), [boOthersExpanded, sortedTopRanking]);
 
   const detailGroups = useMemo(() => {
-    const bySearchAndVelocity = activeLineData
-      .filter((item) => (velocity === 'all' ? true : item.velocity === velocity))
+    const bySearchAndVelocity = velocityFilteredLineData
       .filter((item) => item.desc.toLowerCase().includes(search.toLowerCase()));
+    const grouped = bySearchAndVelocity.reduce((acc, item) => {
+      const key = item.category || 'UNCATEGORIZED';
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(item);
+      return acc;
+    }, {});
 
-    if (line === 'pipa') {
-      return [
-        { name: 'POWER', icon: 'power', items: bySearchAndVelocity.filter((i) => i.category === 'POWER'), theme: 'blue' },
-        { name: 'POWER MAX', icon: 'bolt', items: bySearchAndVelocity.filter((i) => i.category === 'POWER MAX'), theme: 'amber' },
-        { name: 'QUAD', icon: 'view_in_ar', items: bySearchAndVelocity.filter((i) => i.category === 'QUAD'), theme: 'purple' },
-      ].filter((g) => g.items.length > 0);
-    }
-
-    if (line === 'fitting') {
-      return [
-        {
-          name: 'POWER',
-          icon: 'power',
-          items: bySearchAndVelocity.filter((i) => !i.desc.toLowerCase().includes('quad')),
-          theme: 'blue',
-        },
-        {
-          name: 'QUAD',
-          icon: 'view_in_ar',
-          items: bySearchAndVelocity.filter((i) => i.desc.toLowerCase().includes('quad')),
-          theme: 'purple',
-        },
-      ].filter((g) => g.items.length > 0);
-    }
-
-    return [
-      { name: 'SELANG', icon: 'water', items: bySearchAndVelocity.filter((i) => i.category === 'SELANG'), theme: 'cyan' },
-    ].filter((g) => g.items.length > 0);
-  }, [activeLineData, line, velocity, search]);
+    return Object.entries(grouped)
+      .map(([name, items], index) => ({
+        name,
+        icon: iconByCategory(name),
+        items,
+        theme: themeByIndex(index),
+      }))
+      .sort((a, b) => b.items.reduce((sum, item) => sum + item.boTon, 0) - a.items.reduce((sum, item) => sum + item.boTon, 0));
+  }, [velocityFilteredLineData, line, search]);
 
   const detailCount = useMemo(() => detailGroups.reduce((sum, g) => sum + g.items.length, 0), [detailGroups]);
 
@@ -142,52 +227,40 @@ export default function BackorderPage() {
 
   const volumeCards = useMemo(() => {
     const sum = (rows) => rows.reduce((acc, row) => acc + row.boTon, 0);
+    const grouped = velocityFilteredLineData.reduce((acc, item) => {
+      const key = item.category || 'UNCATEGORIZED';
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(item);
+      return acc;
+    }, {});
 
-    if (line === 'pipa') {
-      const power = activeLineData.filter((item) => item.category === 'POWER');
-      const powerMax = activeLineData.filter((item) => item.category === 'POWER MAX');
-      const quad = activeLineData.filter((item) => item.category === 'QUAD');
-      return [
-        { title: 'Power', icon: 'power', value: sum(power) },
-        { title: 'Power Max', icon: 'bolt', value: sum(powerMax) },
-        { title: 'Quad', icon: 'view_in_ar', value: sum(quad) },
-      ];
-    }
-
-    if (line === 'fitting') {
-      const power = activeLineData.filter((item) => !item.desc.toLowerCase().includes('quad'));
-      const quad = activeLineData.filter((item) => item.desc.toLowerCase().includes('quad'));
-      return [
-        { title: 'Power', icon: 'power', value: sum(power) },
-        { title: 'Quad', icon: 'view_in_ar', value: sum(quad) },
-      ];
-    }
-
-    return [
-      { title: 'Selang', icon: 'water', value: sum(activeLineData) },
-    ];
-  }, [activeLineData, line]);
+    return Object.entries(grouped)
+      .map(([category, rows]) => ({
+        title: formatCategoryLabel(category),
+        icon: iconByCategory(category),
+        value: sum(rows),
+      }))
+      .sort((a, b) => b.value - a.value);
+  }, [velocityFilteredLineData, line]);
 
   const runningMachines = useMemo(() => {
     if (!selectedSku) return [];
-    const prefix = line === 'fitting' ? 'I' : line === 'selang' ? 'S' : 'E';
-    return [1, 2, 3].map((n) => {
-      const seed = selectedSku.id * n;
-      const output = Number((selectedSku.boTon * (0.15 + n * 0.08)).toFixed(2));
-      return {
-        name: `${prefix}${String(10 + seed).slice(-2)}`,
-        output,
-        performance: Number((87 + (seed % 10) * 1.1).toFixed(1)),
-      };
-    });
-  }, [selectedSku, line]);
+    if (!Array.isArray(selectedSku.runningMachines)) return [];
+
+    return selectedSku.runningMachines.map((machine, index) => ({
+      name: machine.machine || `Machine-${index + 1}`,
+      output: typeof machine.prodTon === 'number' ? machine.prodTon : 0,
+      performance: typeof machine.performance === 'number' ? machine.performance : null,
+    }));
+  }, [selectedSku]);
 
   const recommendationOptions = useMemo(() => {
     if (!selectedSku) return [];
     const statusPreset = ['busy', 'busy', 'idle', 'idle', 'repair'];
     const prefix = line === 'fitting' ? 'I' : line === 'selang' ? 'S' : 'E';
+    const seedBase = getNumericSeed(selectedSku.id);
     return statusPreset.map((status, idx) => {
-      const seed = selectedSku.id + idx + 1;
+      const seed = seedBase + idx + 1;
       return {
         id: `${selectedSku.id}-${idx}`,
         machine: `${prefix}${String(20 + seed).slice(-2)}`,
@@ -288,21 +361,16 @@ export default function BackorderPage() {
             <div className="flex flex-col gap-1.5 min-w-0">
               <span className="text-[10px] text-on-surface-variant font-bold uppercase tracking-wider font-label-mono">Tipe SKU:</span>
               <div id="bo-velocity-tabs-container" className="flex flex-wrap items-center gap-1 bg-surface-container-high p-1 rounded-xl border border-outline-variant/60 w-fit">
-                {[
-                  { id: 'all', label: 'Semua' },
-                  { id: '01_Fast', label: 'Fast' },
-                  { id: '02_Moderate', label: 'Moderate' },
-                  { id: '03_Slow', label: 'Slow' },
-                ].map((option) => (
+                {velocityOptions.map((optionId) => (
                   <button
-                    key={option.id}
+                    key={optionId}
                     type="button"
-                    onClick={() => setVelocity(option.id)}
+                    onClick={() => setVelocity(optionId)}
                     className={`px-3 py-1.5 rounded-lg text-[11px] font-black font-label-mono transition-all ${
-                      velocity === option.id ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest'
+                      velocity === optionId ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest'
                     }`}
                   >
-                    {option.label}
+                    {optionId === 'all' ? 'Semua' : optionId}
                   </button>
                 ))}
               </div>
@@ -367,6 +435,18 @@ export default function BackorderPage() {
         </div>
       </div>
 
+      {isLoadingData ? (
+        <div className="bg-surface-container border border-outline-variant rounded-xl px-4 py-3 text-sm font-bold text-on-surface-variant">
+          Memuat data Back Order dari backend...
+        </div>
+      ) : null}
+
+      {backOrderError ? (
+        <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-sm font-bold text-red-700">
+          Gagal memuat data Back Order: {backOrderError}
+        </div>
+      ) : null}
+
       <div
         id="bo-active-cards-grid"
         className={`grid grid-cols-1 ${line === 'pipa' ? 'sm:grid-cols-2 xl:grid-cols-4' : line === 'fitting' ? 'sm:grid-cols-2 xl:grid-cols-3 w-full' : 'w-full'} gap-card-gap`}
@@ -422,9 +502,8 @@ export default function BackorderPage() {
               </thead>
               <tbody id="bo-top10-tbody" className="divide-y divide-outline-variant/30 font-medium">
                 {rankingTopItems.map((item, idx) => {
-                  const effectiveHk = item.rateTon > 0 ? item.boTon / item.rateTon : 0;
-                  const remainingTon = Math.max(item.boTon - (item.rateTon * 7), 0);
-                  const velocityLabel = item.velocity === '01_Fast' ? 'Fast' : item.velocity === '02_Moderate' ? 'Mod' : 'Slow';
+                  const velocityLabel = item.velocity || '-';
+                  const remainingTon = typeof item.remainingBoTon === 'number' ? item.remainingBoTon : item.boTon;
 
                   return (
                     <tr
@@ -439,6 +518,7 @@ export default function BackorderPage() {
                       <td className="py-3">
                         <div className="flex flex-col">
                           <span className="font-extrabold text-on-surface text-sm lg:text-base leading-tight">{item.desc}</span>
+                          <span className="text-[10px] text-on-surface-variant font-bold">{item.itemNo || '-'}</span>
                         </div>
                       </td>
                       <td className="py-3 text-center text-on-surface-variant">
@@ -460,10 +540,10 @@ export default function BackorderPage() {
                       <td className="py-3 text-right font-mono text-on-surface text-sm lg:text-base" data-mobile-label="Total BO (Ton)">
                         <div className="flex flex-col items-end">
                           <span className="bo-total-value font-black text-red-600">{item.boTon.toFixed(2)}</span>
-                          <span className="text-[10px] font-bold text-on-surface-variant">({effectiveHk.toFixed(1)} HK)</span>
+                          <span className="text-[10px] font-bold text-on-surface-variant">(BO)</span>
                         </div>
                       </td>
-                      <td className="py-3 text-right font-mono font-black text-sm text-on-surface" data-mobile-label="Sisa BO (Ton) per 16" title="Sisa BO setelah simulasi produksi hingga 7 Agustus 2026">
+                      <td className="py-3 text-right font-mono font-black text-sm text-on-surface" data-mobile-label="Sisa BO (Ton) per 16" title="Sisa BO = BO - Σ ProdTon mesin berjalan untuk ItemNo terkait">
                         {remainingTon.toFixed(2)}
                       </td>
                     </tr>
@@ -495,16 +575,15 @@ export default function BackorderPage() {
                         <span className="text-[10px] font-bold text-on-surface-variant">(—)</span>
                       </div>
                     </td>
-                    <td className="py-3 text-right font-mono font-black text-on-surface" data-mobile-label="Sisa BO (Ton) per 16" title="Sisa BO setelah simulasi produksi hingga 7 Agustus 2026">
-                      {rankingOthersItems.reduce((sum, row) => sum + Math.max(row.boTon - (row.rateTon * 7), 0), 0).toFixed(2)}
+                    <td className="py-3 text-right font-mono font-black text-on-surface" data-mobile-label="Sisa BO (Ton) per 16" title="Sisa BO = BO - Σ ProdTon mesin berjalan untuk ItemNo terkait">
+                      {rankingOthersItems.reduce((sum, row) => sum + (typeof row.remainingBoTon === 'number' ? row.remainingBoTon : row.boTon), 0).toFixed(2)}
                     </td>
                   </tr>
                 ) : null}
 
                 {rankingExpandedItems.map((item) => {
-                  const effectiveHk = item.rateTon > 0 ? item.boTon / item.rateTon : 0;
-                  const remainingTon = Math.max(item.boTon - (item.rateTon * 7), 0);
-                  const velocityLabel = item.velocity === '01_Fast' ? 'Fast' : item.velocity === '02_Moderate' ? 'Mod' : 'Slow';
+                  const velocityLabel = item.velocity || '-';
+                  const remainingTon = typeof item.remainingBoTon === 'number' ? item.remainingBoTon : item.boTon;
 
                   return (
                     <tr
@@ -517,6 +596,7 @@ export default function BackorderPage() {
                       <td className="py-3">
                         <div className="flex flex-col">
                           <span className="font-extrabold text-on-surface text-sm lg:text-base leading-tight">{item.desc}</span>
+                          <span className="text-[10px] text-on-surface-variant font-bold">{item.itemNo || '-'}</span>
                         </div>
                       </td>
                       <td className="py-3 text-center text-on-surface-variant">
@@ -538,10 +618,10 @@ export default function BackorderPage() {
                       <td className="py-3 text-right font-mono text-on-surface text-sm lg:text-base" data-mobile-label="Total BO (Ton)">
                         <div className="flex flex-col items-end">
                           <span className="bo-total-value font-black text-red-600">{item.boTon.toFixed(2)}</span>
-                          <span className="text-[10px] font-bold text-on-surface-variant">({effectiveHk.toFixed(1)} HK)</span>
+                          <span className="text-[10px] font-bold text-on-surface-variant">(BO)</span>
                         </div>
                       </td>
-                      <td className="py-3 text-right font-mono font-black text-sm text-on-surface" data-mobile-label="Sisa BO (Ton) per 16" title="Sisa BO setelah simulasi produksi hingga 7 Agustus 2026">
+                      <td className="py-3 text-right font-mono font-black text-sm text-on-surface" data-mobile-label="Sisa BO (Ton) per 16" title="Sisa BO = BO - Σ ProdTon mesin berjalan untuk ItemNo terkait">
                         {remainingTon.toFixed(2)}
                       </td>
                     </tr>
@@ -590,7 +670,7 @@ export default function BackorderPage() {
                 <div className="flex items-center justify-between gap-3 pb-1 border-b border-primary/10">
                   <div className="flex items-center gap-1.5">
                     <span className="material-symbols-outlined text-primary text-base">engineering</span>
-                    <span className="text-xs font-black uppercase tracking-wide text-primary">Mesin yang sedang mengerjakan SKU (3 Mesin)</span>
+                    <span className="text-xs font-black uppercase tracking-wide text-primary">Mesin yang sedang mengerjakan SKU ({runningMachines.length} Mesin)</span>
                   </div>
                 </div>
                 <div className="overflow-x-auto custom-scrollbar">
@@ -603,11 +683,15 @@ export default function BackorderPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-primary/10 font-medium">
-                      {runningMachines.map((m) => (
+                      {runningMachines.length === 0 ? (
+                        <tr>
+                          <td colSpan={3} className="py-3 text-center text-on-surface-variant font-semibold">Tidak ada mesin berjalan untuk SKU ini.</td>
+                        </tr>
+                      ) : runningMachines.map((m) => (
                         <tr key={m.name} className="hover:bg-primary/5 transition-colors">
                           <td className="py-2 text-center font-bold text-on-surface">{m.name}</td>
                           <td className="py-2 text-center font-mono font-black text-on-surface">{m.output.toFixed(2)}</td>
-                          <td className="py-2 text-center font-mono font-bold text-on-surface">{m.performance.toFixed(1)}%</td>
+                          <td className="py-2 text-center font-mono font-bold text-on-surface">{m.performance === null ? '-' : `${m.performance.toFixed(1)}%`}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -693,10 +777,11 @@ export default function BackorderPage() {
                 onChange={(e) => setVelocity(e.target.value)}
                 className="w-full sm:w-auto bg-surface-container-low border border-outline-variant rounded-xl px-3.5 py-2.5 text-xs lg:text-sm font-bold text-on-surface outline-none focus:ring-1 focus:ring-primary"
               >
-                <option value="all">Semua Status SKU</option>
-                <option value="01_Fast">01_Fast Moving</option>
-                <option value="02_Moderate">02_Moderate</option>
-                <option value="03_Slow">03_Slow Moving</option>
+                {velocityOptions.map((optionId) => (
+                  <option key={`select-${optionId}`} value={optionId}>
+                    {optionId === 'all' ? 'Semua Status SKU' : optionId}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -711,10 +796,11 @@ export default function BackorderPage() {
           ) : (
             detailGroups.map((group) => {
               const groupBo = group.items.reduce((sum, item) => sum + item.boTon, 0);
-              const groupRate = group.items.reduce((sum, item) => sum + item.rateTon, 0);
-              const groupAvgHk = group.items.length
-                ? group.items.reduce((sum, item) => sum + item.boTon / item.rateTon, 0) / group.items.length
-                : 0;
+              const rateItems = group.items.filter((item) => typeof item.rateTon === 'number' && item.rateTon > 0);
+              const groupRate = rateItems.reduce((sum, item) => sum + item.rateTon, 0);
+              const groupAvgHk = rateItems.length
+                ? rateItems.reduce((sum, item) => sum + item.boTon / item.rateTon, 0) / rateItems.length
+                : null;
 
               const theme =
                 group.theme === 'blue'
@@ -754,8 +840,8 @@ export default function BackorderPage() {
                       </thead>
                       <tbody className="divide-y divide-outline-variant/40 text-sm font-semibold">
                         {group.items.map((item, idx) => {
-                          const hk = item.boTon / item.rateTon;
-                          const hkClass = hk > 7 ? 'text-red-600' : hk >= 3 ? 'text-amber-600' : 'text-emerald-600';
+                          const hk = typeof item.rateTon === 'number' && item.rateTon > 0 ? item.boTon / item.rateTon : null;
+                          const hkClass = hk === null ? 'text-on-surface-variant' : hk > 7 ? 'text-red-600' : hk >= 3 ? 'text-amber-600' : 'text-emerald-600';
                           const velBadge =
                             item.velocity === '01_Fast'
                               ? 'bg-blue-500/15 text-blue-600 border-blue-500/30'
@@ -773,9 +859,9 @@ export default function BackorderPage() {
                                 </span>
                               </td>
                               <td className="px-5 py-4 text-right font-mono font-black text-red-600 text-base">-{item.boTon.toFixed(2)}</td>
-                              <td className="px-5 py-4 text-right font-mono font-bold text-on-surface text-sm">{item.rateTon.toFixed(2)}</td>
+                              <td className="px-5 py-4 text-right font-mono font-bold text-on-surface text-sm">{typeof item.rateTon === 'number' ? item.rateTon.toFixed(2) : '-'}</td>
                               <td className="px-5 py-4 text-center">
-                                <span className={`font-mono text-base font-black ${hkClass}`}>{hk.toFixed(2)} Hari</span>
+                                <span className={`font-mono text-base font-black ${hkClass}`}>{hk === null ? '-' : `${hk.toFixed(2)} Hari`}</span>
                               </td>
                             </tr>
                           );
@@ -785,8 +871,8 @@ export default function BackorderPage() {
                         <tr className="bg-surface-container-high/90">
                           <td colSpan={3} className="px-5 py-4 text-left uppercase text-xs font-black">TOTAL {group.name}</td>
                           <td className="px-5 py-4 text-right font-mono text-red-600 font-black text-base">-{groupBo.toFixed(2)}</td>
-                          <td className="px-5 py-4 text-right font-mono text-on-surface font-black text-sm">{groupRate.toFixed(2)}</td>
-                          <td className="px-5 py-4 text-center font-mono text-primary font-black text-base">{groupAvgHk.toFixed(2)} Hari (Avg)</td>
+                          <td className="px-5 py-4 text-right font-mono text-on-surface font-black text-sm">{rateItems.length ? groupRate.toFixed(2) : '-'}</td>
+                          <td className="px-5 py-4 text-center font-mono text-primary font-black text-base">{groupAvgHk === null ? '-' : `${groupAvgHk.toFixed(2)} Hari (Avg)`}</td>
                         </tr>
                       </tfoot>
                     </table>
